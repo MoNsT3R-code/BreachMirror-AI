@@ -23,14 +23,6 @@ At the center of the experience is the living AI entity known as the **BreachOrb
 
 ---
 
-## Quick Navigation:
-
-
-
----
-
----
-
 ## 🔮 BreachOrb Intelligence Engine
 
 The visual centerpiece of the platform is the **BreachOrb**, a floating AI-powered awareness companion operating throughout the application.
