@@ -15,109 +15,257 @@
 
 ## 🌐 Platform Overview
 
-BreachMirror AI is a modern cybersecurity awareness ecosystem engineered to intercept risky digital behaviors and instantly convert them into learning opportunities.
+**BreachMirror AI** is a cybersecurity awareness and incident-response training platform designed to help users identify risks, improve security behavior, and develop practical cyber resilience skills through interactive learning experiences.
 
-Unlike traditional compliance-focused security training systems, BreachMirror AI emphasizes **reflection over punishment**, **coaching over policing**, and **behavioral improvement over scorekeeping**.
+Unlike traditional compliance-focused training tools, BreachMirror AI promotes:
 
-At the center of the experience is the living AI entity known as the **BreachOrb**, an adaptive cyber-intelligence companion that visualizes an employee's security awareness posture in real time while delivering contextual guidance, risk feedback, certifications, simulations, and micro-learning interventions.
+- ✅ Reflection over punishment
+- ✅ Coaching over policing
+- ✅ Continuous learning over scorekeeping
+- ✅ Zero-blame incident response culture
 
----
+At the center of the platform is **BreachOrb**, an adaptive cybersecurity intelligence companion that provides contextual guidance, awareness feedback, simulations, analytics, and learning recommendations.
 
-## 🔮 BreachOrb Intelligence Engine
-
-The visual centerpiece of the platform is the **BreachOrb**, a floating AI-powered awareness companion operating throughout the application.
-
-Unlike static dashboards, BreachOrb continuously evolves based on user actions, completed learning content, intercepted risky behavior, and threat simulation performance.
-
-## ✨ Orb Behavioral States
-
-| State | Color Profile | Trigger Event |
-|---------|---------|---------|
-| 🟢 Guardian Mode | Emerald Aura | Training completed, quiz passed |
-| 🔵 Awareness Mode | Cobalt Shield | Stable security posture |
-| 🟣 Learning Mode | Indigo Learning Pulse | New lesson assigned |
-| 🟠 Warning Mode | Amber Alert | Medium-risk policy violation |
-| 🔴 Threat Mode | Crimson Hazard Beacon | High-risk data exposure attempt |
+> **Important:** BreachMirror AI is currently a cybersecurity training simulator. It does not monitor real systems or provide production security protection.
 
 ---
 
-## 🌈 Visual Effects System
+# 🔮 BreachOrb Intelligence Engine
 
-### Animated Gradient Core
+The visual centerpiece of the platform is **BreachOrb**, an AI-inspired awareness companion that evolves based on user learning progress, scenario outcomes, and simulated security events.
 
-The orb's internal rendering engine consists of:
+## Orb Behavioral States
 
-- Dynamic radial gradients
-- Layered transparency effects
-- Volumetric glow shaders
-- Particle-based celebration effects
-- Floating physics animations
+| State | Description |
+|---------|---------|
+| 🟢 Guardian Mode | Training completed and security goals achieved |
+| 🔵 Awareness Mode | Stable security posture maintained |
+| 🟣 Learning Mode | Active security learning and certification progress |
+| 🟠 Warning Mode | Simulated policy violations detected |
+| 🔴 Threat Mode | High-risk simulated exposure scenarios |
 
-### 🖱️ Dynamic Cursor Response
+---
 
-Real-time mouse interaction influences:
+# 🚀 Core Features
 
-- Specular reflections
-- Aura intensity
-- Surface lighting angles
-- Gradient movement
-- Hover reactions
+## 🔐 Authentication & Access Control
 
-### 🎉 Achievement Celebrations
+- User Registration
+- Secure Login
+- Password Authentication
+- Password Reset Flow
+- Account Lockout Protection
+- Role-Based User Profiles
+- Session Management
+- Audit Logging
 
-Successful actions trigger:
+---
 
-- XP particle bursts
-- Security Champion animations
-- Green pulse radiance
-- Badge unlock sequences
-- Training completion fireworks
+## 📊 Dashboard
+
+The Dashboard acts as the central command center for cybersecurity awareness activities.
+
+### Included Widgets
+
+- Security Awareness Score
+- Threat Monitoring Overview
+- Security Certification Progress
+- Team Learning Insights
+- Security Learning Streaks
+- Risk Trend Analysis
+- Knowledge Progress Tracking
+
+---
+
+## ⚠️ Threat Activity
+
+Users can explore simulated threat events and security incidents.
+
+Features include:
+
+- Simulated Security Alerts
+- Threat Severity Tracking
+- Root Cause Analysis
+- Risk Scoring
+- Remediation Guidance
+- Incident Learning Opportunities
+
+---
+
+## 📖 Security Guide
+
+Provides practical security guidance and company policy awareness.
+
+Topics include:
+
+- Password Security
+- MFA Best Practices
+- Device Security
+- Cloud Security
+- AI Security Risks
+- Data Protection
+- Social Engineering Awareness
+
+---
+
+## 📈 Analytics
+
+Interactive dashboards and charts provide visibility into simulated security metrics.
+
+Includes:
+
+- Threat Volume Trends
+- Attack Vector Analysis
+- User Learning Progress
+- Security Readiness Insights
+- Risk Distribution Monitoring
+
+---
+
+## 🎯 Practice Scenarios
+
+Users can participate in realistic workplace cybersecurity scenarios.
+
+Examples:
+
+- Phishing Emails
+- AI Misuse Risks
+- Secret Exposure
+- USB Device Threats
+- Cloud Misconfigurations
+- Social Engineering Attempts
+
+Each scenario provides:
+
+- Decision Choices
+- Immediate Feedback
+- Risk Explanation
+- Recommended Actions
+
+---
+
+# 🛠️ Security Tools
+
+## 🔍 Security Radar
+
+Interactive threat visualization tool for:
+
+- Threat Discovery
+- Attack Vector Analysis
+- Security Awareness Learning
+- Simulated Risk Exploration
+
+---
+
+## 📝 Private Report
+
+Allows users to analyze potentially risky content such as:
+
+- Links
+- Code Snippets
+- Sensitive Information
+- Suspicious Messages
+
+Provides learning-focused security guidance and recommendations.
+
+---
+
+## 📚 Security Handbook
+
+Contains:
+
+- Security Policies
+- Cybersecurity Best Practices
+- Learning Modules
+- Awareness Guides
+- Compliance Resources
+
+---
+
+## 🤝 Code of Conduct
+
+Provides guidance on:
+
+- Ethical Behavior
+- Professional Conduct
+- Workplace Security Expectations
+- Responsible Use of Technology
+
+---
+
+## ✅ Security Knowledge Check
+
+Interactive quizzes to test understanding of:
+
+- Security Policies
+- Cyber Threats
+- Incident Response
+- Compliance Principles
+
+---
+
+## 🤖 AI Practice Tool
+
+Allows users to evaluate simulated AI-related actions and understand:
+
+- Potential Risks
+- Data Exposure Concerns
+- Safe AI Usage
+- Recommended Alternatives
+
+---
+
+## 🔎 Search
+
+Search for:
+
+- Policies
+- Security Topics
+- Threat Types
+- Learning Content
+- Training Resources
+
+---
+
+## 🎛️ Widget Customizer
+
+Customize dashboard experiences:
+
+- Hide/Show Widgets
+- Rearrange Widgets
+- Personalize Layout
+- Improve Learning Workflow
+
+---
+
+## 📋 Audit Log
+
+Tracks authentication-related events:
+
+- Registrations
+- Logins
+- Failed Logins
+- Password Resets
+- Logouts
+- Account Lockouts
 
 ---
 
 # 🏗️ Platform Architecture
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                     EMPLOYEE INTERACTION LAYER              │
-├──────────────────────────────────────────────────────────────┤
-│ Dashboard │ Learning Center │ Policies │ Scenarios │ Profile│
-└──────────────────────────────────────────────────────────────┘
-                               ↓
-┌──────────────────────────────────────────────────────────────┐
-│                    BREACHORB AI ENGINE                      │
-├──────────────────────────────────────────────────────────────┤
-│ Awareness Score Engine                                      │
-│ Behavioral Analytics                                        │
-│ Threat Response Logic                                       │
-│ XP & Gamification Framework                                 │
-│ Adaptive Recommendation Engine                              │
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-# 🚀 Core Platform Capabilities
-
-## 📊 Dashboard & Awareness Engine
-
-The dashboard acts as the cybersecurity command center.
-
-### Key Widgets
-
-- Live Awareness Score
-- Security Qualification Tier
-- Learning Completion Rate
-- Team Performance Overview
-- Threat Interceptions
-- Current Learning Streak
-- Security Badge Collection
-
-### Security Qualification Tiers
-
-| Score | Qualification |
-|---------|---------|
-| 90-100 | 🏆 Security Champion |
-| 75-89 | 🛡️ Security Aware |
-| 50-74 | 📚 Learning In Progress |
-| 0-49 | ⚠️ Needs Coaching |
+┌─────────────────────────────────────────────────┐
+│                USER INTERACTION                 │
+├─────────────────────────────────────────────────┤
+│ Dashboard │ Analytics │ Scenarios │ Learning   │
+└─────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────┐
+│               BREACHORB ENGINE                  │
+├─────────────────────────────────────────────────┤
+│ Awareness Scoring                              │
+│ Security Analytics                             │
+│ Risk Evaluation                                │
+│ Learning Recommendations                       │
+│ Gamification & Progress Tracking              │
+└─────────────────────────────────────────────────┘
