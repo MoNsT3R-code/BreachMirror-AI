@@ -36,205 +36,57 @@ The visual centerpiece of the platform is **BreachOrb**, an AI-inspired awarenes
 
 ## Orb Behavioral States
 
-| State | Description |
-|---------|---------|
-| 🟢 Guardian Mode | Training completed and security goals achieved |
-| 🔵 Awareness Mode | Stable security posture maintained |
-| 🟣 Learning Mode | Active security learning and certification progress |
-| 🟠 Warning Mode | Simulated policy violations detected |
-| 🔴 Threat Mode | High-risk simulated exposure scenarios |
-
----
+  | State | Description |
+  |---------|---------|
+  | 🟢 Guardian Mode | Training completed and security goals achieved |
+  | 🔵 Awareness Mode | Stable security posture maintained |
+  | 🟣 Learning Mode | Active security learning and certification progress |
+  | 🟠 Warning Mode | Simulated policy violations detected |
+  | 🔴 Threat Mode | High-risk simulated exposure scenarios |
 
 # 🚀 Core Features
 
-## 🔐 Authentication & Access Control
-
-- User Registration
-- Secure Login
-- Password Authentication
-- Password Reset Flow
-- Account Lockout Protection
-- Role-Based User Profiles
-- Session Management
-- Audit Logging
+| 🔐 Authentication & Access Control | 📊 Dashboard |
+|-----------------------------------|-------------|
+| - User Registration<br>- Secure Login<br>- Password Authentication<br>- Password Reset Flow<br>- Account Lockout Protection<br>- Role-Based User Profiles<br>- Session Management<br>- Audit Logging | The Dashboard acts as the central command center for cybersecurity awareness activities.<br><br>**Included Widgets:**<br>- Security Awareness Score<br>- Threat Monitoring Overview<br>- Security Certification Progress<br>- Team Learning Insights<br>- Security Learning Streaks<br>- Risk Trend Analysis<br>- Knowledge Progress Tracking |
 
 ---
 
-## 📊 Dashboard
-
-The Dashboard acts as the central command center for cybersecurity awareness activities.
-
-### Included Widgets
-
-- Security Awareness Score
-- Threat Monitoring Overview
-- Security Certification Progress
-- Team Learning Insights
-- Security Learning Streaks
-- Risk Trend Analysis
-- Knowledge Progress Tracking
+| ⚠️ Threat Activity | 📖 Security Guide |
+|-------------------|------------------|
+| Users can explore simulated threat events and security incidents.<br><br>**Features:**<br>- Simulated Security Alerts<br>- Threat Severity Tracking<br>- Root Cause Analysis<br>- Risk Scoring<br>- Remediation Guidance<br>- Incident Learning Opportunities | Provides practical security guidance and company policy awareness.<br><br>**Topics Include:**<br>- Password Security<br>- MFA Best Practices<br>- Device Security<br>- Cloud Security<br>- AI Security Risks<br>- Data Protection<br>- Social Engineering Awareness |
 
 ---
 
-## ⚠️ Threat Activity
-
-Users can explore simulated threat events and security incidents.
-
-Features include:
-
-- Simulated Security Alerts
-- Threat Severity Tracking
-- Root Cause Analysis
-- Risk Scoring
-- Remediation Guidance
-- Incident Learning Opportunities
-
----
-
-## 📖 Security Guide
-
-Provides practical security guidance and company policy awareness.
-
-Topics include:
-
-- Password Security
-- MFA Best Practices
-- Device Security
-- Cloud Security
-- AI Security Risks
-- Data Protection
-- Social Engineering Awareness
-
----
-
-## 📈 Analytics
-
-Interactive dashboards and charts provide visibility into simulated security metrics.
-
-Includes:
-
-- Threat Volume Trends
-- Attack Vector Analysis
-- User Learning Progress
-- Security Readiness Insights
-- Risk Distribution Monitoring
-
----
-
-## 🎯 Practice Scenarios
-
-Users can participate in realistic workplace cybersecurity scenarios.
-
-Examples:
-
-- Phishing Emails
-- AI Misuse Risks
-- Secret Exposure
-- USB Device Threats
-- Cloud Misconfigurations
-- Social Engineering Attempts
-
-Each scenario provides:
-
-- Decision Choices
-- Immediate Feedback
-- Risk Explanation
-- Recommended Actions
+| 📈 Analytics | 🎯 Practice Scenarios |
+|-------------|----------------------|
+| Interactive dashboards and charts provide visibility into simulated security metrics.<br><br>**Includes:**<br>- Threat Volume Trends<br>- Attack Vector Analysis<br>- User Learning Progress<br>- Security Readiness Insights<br>- Risk Distribution Monitoring | Users can participate in realistic workplace cybersecurity scenarios.<br><br>**Examples:**<br>- Phishing Emails<br>- AI Misuse Risks<br>- Secret Exposure<br>- USB Device Threats<br>- Cloud Misconfigurations<br>- Social Engineering Attempts<br><br>**Scenario Outcomes:**<br>- Decision Choices<br>- Immediate Feedback<br>- Risk Explanation<br>- Recommended Actions |
 
 ---
 
 # 🛠️ Security Tools
 
-## 🔍 Security Radar
-
-Interactive threat visualization tool for:
-
-- Threat Discovery
-- Attack Vector Analysis
-- Security Awareness Learning
-- Simulated Risk Exploration
+| 🔍 Security Radar | 📝 Private Report |
+|------------------|------------------|
+| Interactive threat visualization tool for:<br><br>- Threat Discovery<br>- Attack Vector Analysis<br>- Security Awareness Learning<br>- Simulated Risk Exploration | Allows users to analyze potentially risky content such as:<br><br>- Links<br>- Code Snippets<br>- Sensitive Information<br>- Suspicious Messages<br><br>Provides learning-focused security guidance and recommendations. |
 
 ---
 
-## 📝 Private Report
-
-Allows users to analyze potentially risky content such as:
-
-- Links
-- Code Snippets
-- Sensitive Information
-- Suspicious Messages
-
-Provides learning-focused security guidance and recommendations.
+| 📚 Security Handbook | 🤝 Code of Conduct |
+|---------------------|-------------------|
+| Contains:<br><br>- Security Policies<br>- Cybersecurity Best Practices<br>- Learning Modules<br>- Awareness Guides<br>- Compliance Resources | Provides guidance on:<br><br>- Ethical Behavior<br>- Professional Conduct<br>- Workplace Security Expectations<br>- Responsible Use of Technology |
 
 ---
 
-## 📚 Security Handbook
-
-Contains:
-
-- Security Policies
-- Cybersecurity Best Practices
-- Learning Modules
-- Awareness Guides
-- Compliance Resources
+| ✅ Security Knowledge Check | 🤖 AI Practice Tool |
+|----------------------------|-------------------|
+| Interactive quizzes to test understanding of:<br><br>- Security Policies<br>- Cyber Threats<br>- Incident Response<br>- Compliance Principles | Allows users to evaluate AI-related actions and understand:<br><br>- Potential Risks<br>- Data Exposure Concerns<br>- Safe AI Usage<br>- Recommended Alternatives |
 
 ---
 
-## 🤝 Code of Conduct
-
-Provides guidance on:
-
-- Ethical Behavior
-- Professional Conduct
-- Workplace Security Expectations
-- Responsible Use of Technology
-
----
-
-## ✅ Security Knowledge Check
-
-Interactive quizzes to test understanding of:
-
-- Security Policies
-- Cyber Threats
-- Incident Response
-- Compliance Principles
-
----
-
-## 🤖 AI Practice Tool
-
-Allows users to evaluate simulated AI-related actions and understand:
-
-- Potential Risks
-- Data Exposure Concerns
-- Safe AI Usage
-- Recommended Alternatives
-
----
-
-## 🔎 Search
-
-Search for:
-
-- Policies
-- Security Topics
-- Threat Types
-- Learning Content
-- Training Resources
-
----
-
-## 🎛️ Widget Customizer
-
-Customize dashboard experiences:
-
-- Hide/Show Widgets
-- Rearrange Widgets
-- Personalize Layout
-- Improve Learning Workflow
+| 🔎 Search | 🎛️ Widget Customizer |
+|-----------|----------------------|
+| Search for:<br><br>- Policies<br>- Security Topics<br>- Threat Types<br>- Learning Content<br>- Training Resources | Customize dashboard experiences:<br><br>- Hide/Show Widgets<br>- Rearrange Widgets<br>- Personalize Layout<br>- Improve Learning Workflow |
 
 ---
 
@@ -254,18 +106,18 @@ Tracks authentication-related events:
 # 🏗️ Platform Architecture
 
 ```text
-┌─────────────────────────────────────────────────┐
-│                USER INTERACTION                 │
-├─────────────────────────────────────────────────┤
-│ Dashboard │ Analytics │ Scenarios │ Learning   │
-└─────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────┐
-│               BREACHORB ENGINE                  │
-├─────────────────────────────────────────────────┤
-│ Awareness Scoring                              │
-│ Security Analytics                             │
-│ Risk Evaluation                                │
-│ Learning Recommendations                       │
-│ Gamification & Progress Tracking              │
-└─────────────────────────────────────────────────┘
+                                          ┌─────────────────────────────────────────────────┐
+                                          │                USER INTERACTION                 │
+                                          ├─────────────────────────────────────────────────┤
+                                          │  Dashboard │ Analytics │ Scenarios │ Learning   │
+                                          └─────────────────────────────────────────────────┘
+                                                                  ↓
+                                          ┌─────────────────────────────────────────────────┐
+                                          │               BREACHORB ENGINE                  │
+                                          ├─────────────────────────────────────────────────┤
+                                          │  Awareness Scoring                              │
+                                          │  Security Analytics                             │
+                                          │  Risk Evaluation                                │
+                                          │  Learning Recommendations                       │
+                                          │  Gamification & Progress Tracking               │
+                                          └─────────────────────────────────────────────────┘
