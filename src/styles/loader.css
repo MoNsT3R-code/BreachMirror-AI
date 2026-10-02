@@ -1,0 +1,261 @@
+/* Cyber Tactical Radar Scanner & Loader - Professional Defense Handbook Theme */
+.loader,
+.radar-loader {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle at center, #071326 0%, #030712 100%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0px 0px 15px rgba(6, 182, 212, 0.35),
+    inset 0px 0px 30px rgba(16, 185, 129, 0.15),
+    0px 0px 20px rgba(6, 182, 212, 0.2);
+  border: 1.5px solid rgba(6, 182, 212, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+}
+
+html.light .loader,
+html.light .radar-loader {
+  background: radial-gradient(circle at center, #f8fafc 0%, #e2e8f0 100%);
+  border: 1.5px solid rgba(2, 132, 199, 0.7);
+  box-shadow:
+    inset 0px 0px 15px rgba(2, 132, 199, 0.2),
+    inset 0px 0px 25px rgba(16, 185, 129, 0.1),
+    0px 0px 15px rgba(2, 132, 199, 0.15);
+}
+
+/* Radar Middle Concentric Ring */
+.loader::before,
+.radar-loader::before {
+  content: "";
+  position: absolute;
+  inset: 22px;
+  background: transparent;
+  border: 1px dashed rgba(16, 185, 129, 0.5);
+  border-radius: 50%;
+  box-shadow: inset 0px 0px 8px rgba(16, 185, 129, 0.2);
+  pointer-events: none;
+}
+
+html.light .loader::before,
+html.light .radar-loader::before {
+  border: 1px dashed rgba(16, 185, 129, 0.6);
+  box-shadow: inset 0px 0px 6px rgba(16, 185, 129, 0.2);
+}
+
+/* Radar Center Core Hub */
+.loader::after,
+.radar-loader::after {
+  content: "";
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 242, 254, 0.7);
+  background: radial-gradient(circle, rgba(0, 242, 254, 0.15) 0%, transparent 80%);
+  box-shadow: inset 0px 0px 6px rgba(0, 242, 254, 0.35);
+  pointer-events: none;
+}
+
+html.light .loader::after,
+html.light .radar-loader::after {
+  border: 1.5px solid rgba(2, 132, 199, 0.8);
+  background: radial-gradient(circle, rgba(2, 132, 199, 0.1) 0%, transparent 80%);
+  box-shadow: inset 0px 0px 5px rgba(2, 132, 199, 0.3);
+}
+
+/* Dynamic Rotating Radar Sweep Beam */
+.loader span,
+.radar-loader span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  transform-origin: top left;
+  animation: radar81 2.2s linear infinite;
+  box-shadow:
+    -35px -80px 40px -30px rgba(0, 242, 254, 0.75),
+    -15px -40px 20px -15px rgba(16, 185, 129, 0.5);
+  border-top: 2.5px solid #00f2fe;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.8));
+}
+
+html.light .loader span,
+html.light .radar-loader span {
+  border-top: 2.5px solid #0284c7;
+  box-shadow:
+    -35px -80px 40px -30px rgba(2, 132, 199, 0.6),
+    -15px -40px 20px -15px rgba(16, 185, 129, 0.4);
+  filter: drop-shadow(0 0 5px rgba(2, 132, 199, 0.7));
+}
+
+.loader span::before,
+.radar-loader span::before {
+  display: none;
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 15%;
+  height: 100%;
+  background: rgba(0, 242, 254, 0.4);
+  transform-origin: top left;
+  transform: rotate(-90deg);
+  filter: blur(15px) drop-shadow(10px 0px 10px #00f2fe);
+}
+
+@keyframes radar81 {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sample Breach Blip Coordinates */
+#dot-1 {
+  --dot-start-top: 100px;
+  --dot-start-left: 135px;
+  --dot-end-top: 125px;
+  --dot-end-left: 20px;
+  --delay: 0s;
+  --dot-color: #f43f5e;
+  --dot-glow: rgba(244, 63, 94, 0.85);
+}
+
+#dot-2 {
+  --dot-start-top: 95px;
+  --dot-start-left: 10px;
+  --dot-end-top: 8px;
+  --dot-end-left: 95px;
+  --delay: 0s;
+  --dot-color: #f59e0b;
+  --dot-glow: rgba(245, 158, 11, 0.85);
+}
+
+#dot-3 {
+  --dot-start-top: 105px;
+  --dot-start-left: 100px;
+  --dot-end-top: 25px;
+  --dot-end-left: 25px;
+  --delay: 0s;
+  --dot-color: #00f2fe;
+  --dot-glow: rgba(0, 242, 254, 0.85);
+}
+
+#dot-4 {
+  --dot-start-top: 110px;
+  --dot-start-left: 145px;
+  --dot-end-top: 135px;
+  --dot-end-left: 35px;
+  --delay: 0s;
+  --dot-color: #a855f7;
+  --dot-glow: rgba(168, 85, 247, 0.85);
+}
+
+#dot-5 {
+  --dot-start-top: 5px;
+  --dot-start-left: 85px;
+  --dot-end-top: 120px;
+  --dot-end-left: 115px;
+  --delay: 4s;
+  --dot-color: #10f396;
+  --dot-glow: rgba(16, 243, 150, 0.85);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  position: absolute;
+  top: var(--dot-start-top);
+  left: var(--dot-start-left);
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow:
+    0 0 10px 2px var(--dot-glow, rgba(0, 242, 254, 0.8)),
+    inset 0 0 4px #ffffff;
+  -webkit-animation: fly 32s linear infinite;
+  animation: fly 32s linear infinite;
+  animation-delay: var(--delay);
+  -moz-animation: fly 32s linear infinite;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+  z-index: 10;
+}
+
+.dot:hover {
+  transform: scale(2.4);
+  filter: drop-shadow(0 0 10px var(--dot-color, #00f2fe));
+}
+
+@keyframes fly {
+  0% {
+    top: var(--dot-start-top);
+    left: var(--dot-start-left);
+  }
+
+  100% {
+    top: var(--dot-end-top);
+    left: var(--dot-end-left);
+  }
+
+  5%,
+  15%,
+  25%,
+  35%,
+  45%,
+  55%,
+  65%,
+  75%,
+  85%,
+  95% {
+    background: #ffffff;
+    box-shadow:
+      0 0 12px 3px var(--dot-glow, rgba(0, 242, 254, 0.9)),
+      inset 0 0 4px #ffffff;
+  }
+
+  0%,
+  10%,
+  20%,
+  30%,
+  40%,
+  50%,
+  60%,
+  70%,
+  80%,
+  90% {
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow:
+      0 0 6px 1px var(--dot-glow, rgba(0, 242, 254, 0.5)),
+      inset 0 0 2px #ffffff;
+  }
+}
+
+/* Fallback Polygon Loader support */
+.loader-polygon {
+  --color-one: #06b6d4;
+  --color-two: #3b82f6;
+  --color-three: rgba(6, 182, 212, 0.5);
+  --color-four: rgba(59, 130, 246, 0.4);
+  --color-five: rgba(6, 182, 212, 0.2);
+  --time-animation: 2s;
+  --size: 1;
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  transform: scale(var(--size));
+  box-shadow:
+    0 0 25px 0 var(--color-three),
+    0 15px 40px 0 var(--color-four);
+}

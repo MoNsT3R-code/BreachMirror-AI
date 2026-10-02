@@ -1,0 +1,6 @@
+{
+  "name": "BreachMirror AI — Real-Time Cybersecurity Telemetry & Teachable Moments",
+  "description": "Next-generation cybersecurity awareness and teachable moments platform featuring real-time breach telemetry interception, blast radius simulation, and personalized zero-blame employee coaching.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

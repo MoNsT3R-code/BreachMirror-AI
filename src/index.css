@@ -1,0 +1,427 @@
+@import "tailwindcss";
+@import "./styles/theme-toggle.css";
+@import "./styles/cyber-card.css";
+@import "./styles/loader.css";
+@import "./styles/search-bar.css";
+@import "./styles/welcome-button.css";
+@import "./styles/theme-switch.css";
+@import "./styles/star-field.css";
+
+@layer base {
+  :root {
+    --bg-base: #020408;
+    --bg-surface: rgba(15, 23, 42, 0.65);
+    --border-glow: rgba(6, 182, 212, 0.3);
+    --accent-vengeance: #f43f5e;
+    --accent-cyan: #06b6d4;
+    --accent-blue: #3b82f6;
+    --accent-purple: #a855f7;
+    --accent-amber: #f59e0b;
+    --accent-emerald: #10b981;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+  }
+
+  html.light {
+    --bg-base: #f8fafc;
+    --bg-surface: #ffffff;
+    --border-glow: rgba(8, 145, 178, 0.25);
+    --accent-vengeance: #e11d48;
+    --accent-cyan: #0284c7;
+    --accent-blue: #2563eb;
+    --accent-purple: #9333ea;
+    --accent-amber: #d97706;
+    --accent-emerald: #059669;
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Orbitron', 'Space Grotesk', sans-serif;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Light mode typography & contrast fixes - ensures font is never hidden */
+html.light,
+html.light body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #0f172a !important;
+}
+
+/* Light mode text hierarchy on light surfaces */
+html.light p,
+html.light label {
+  color: #334155;
+}
+
+html.light .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+/* HIGH-CONTRAST PRESERVATION: Never make text dark on solid/gradient/dark buttons or dark chips! */
+html.light button.bg-rose-500,
+html.light button.bg-rose-600,
+html.light button[class*="from-rose-"],
+html.light button[class*="from-purple-"],
+html.light button[class*="from-cyan-"],
+html.light button[class*="from-blue-"],
+html.light button[class*="bg-gradient-to-r"],
+html.light [class*="bg-gradient-to-r"] .text-white,
+html.light [class*="bg-gradient-to-tr"] .text-white,
+html.light button[class*="bg-gradient-"] *,
+html.light button.bg-rose-500 *,
+html.light button.bg-rose-600 *,
+html.light .badge-dark,
+html.light .text-white-forced {
+  color: #ffffff !important;
+}
+
+html.light button[class*="bg-gradient-to-r"] svg,
+html.light button.bg-rose-500 svg,
+html.light button.bg-rose-600 svg {
+  color: #ffffff !important;
+}
+
+/* Cyan accent buttons with deep black text for perfect 12:1 WCAG contrast */
+html.light .bg-cyan-500,
+html.light button.bg-cyan-500 {
+  background-color: #06b6d4 !important;
+  color: #020617 !important;
+}
+html.light button.bg-cyan-500 * {
+  color: #020617 !important;
+}
+
+/* Make glowing text accessible and rich in light mode */
+html.light .text-cyan-400,
+html.light .text-cyan-300,
+html.light .text-sky-400,
+html.light .text-sky-300 {
+  color: #0284c7 !important;
+}
+
+html.light .text-emerald-400,
+html.light .text-emerald-300 {
+  color: #059669 !important;
+}
+
+html.light .text-amber-400,
+html.light .text-amber-300 {
+  color: #b45309 !important;
+}
+
+html.light .text-rose-400,
+html.light .text-rose-300 {
+  color: #e11d48 !important;
+}
+
+html.light .text-purple-400,
+html.light .text-purple-300 {
+  color: #7c3aed !important;
+}
+
+/* Officer username highlight: white in dark mode, black in light mode */
+.welcome-officer-name {
+  color: #ffffff !important;
+}
+
+html.light .welcome-officer-name {
+  color: #000000 !important;
+}
+
+/* Light mode brand text gradient - rich chromatic dark finish */
+html.light .bg-clip-text.text-transparent {
+  background-image: linear-gradient(135deg, #0284c7 0%, #7c3aed 50%, #e11d48 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Surface and glass background overrides for light mode */
+html.light .vengeance-glass {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/95,
+html.light .bg-slate-900,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/95,
+html.light .bg-slate-950 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-800\/40,
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .bg-black\/20,
+html.light .bg-black\/30,
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html.light .bg-black\/60,
+html.light .bg-black\/80 {
+  background-color: #f8fafc !important;
+}
+
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/20,
+html.light .border-white\/30 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/10 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Light mode input fields */
+html.light input,
+html.light textarea,
+html.light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Glass & Surface utilities */
+.vengeance-glass {
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+}
+
+html.light .vengeance-glass {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Terminals and code inspection surfaces remain dark with high-contrast text */
+pre, .terminal-surface, .terminal-box {
+  background-color: #030712 !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+html.light pre,
+html.light .terminal-surface,
+html.light .terminal-box {
+  background-color: #0f172a !important;
+  color: #38bdf8 !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(2, 4, 8, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.7);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.6);
+}
+
+/* Sleek mesh background */
+.cyber-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+}
+
+html.light .cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(8, 145, 178, 0.04) 1px, transparent 1px);
+}
+
+/* =========================================================
+   VENGEANCE PROTOCOL STYLING & GRADIENTS
+   ========================================================= */
+
+/* High-Energy Chromatic Gradient Text */
+.text-gradient-vengeance {
+  background: linear-gradient(135deg, #f43f5e 0%, #a855f7 45%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-plasma {
+  background: linear-gradient(135deg, #f59e0b 0%, #ec4899 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+html.light .text-gradient-vengeance {
+  background: linear-gradient(135deg, #be123c 0%, #7e22ce 50%, #0369a1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Vengeance Overdrive Mode Activated */
+.vengeance-active {
+  --bg-base: #07020d !important;
+  --border-glow: rgba(244, 63, 94, 0.5) !important;
+}
+
+.vengeance-active body {
+  background-color: #07020d !important;
+}
+
+.vengeance-active .vengeance-glass {
+  border-color: rgba(244, 63, 94, 0.25) !important;
+  box-shadow: 0 10px 35px -5px rgba(244, 63, 94, 0.25) !important;
+}
+
+/* Conic Shimmering Border */
+@keyframes spin-gradient {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.vengeance-conic-glow {
+  position: relative;
+}
+
+.vengeance-conic-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, #f43f5e, #a855f7, #06b6d4, #f59e0b, #f43f5e);
+  z-index: -1;
+  opacity: 0.6;
+  filter: blur(8px);
+  animation: spin-gradient 8s linear infinite;
+}
+
+/* CRT Scanlines Overlay */
+.crt-scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 3px 100%;
+  opacity: 0.8;
+}
+
+/* Slow Spin Helper */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+/* 3D Depth & Tilt Utilities */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.perspective-1200 {
+  perspective: 1200px;
+}
+
+/* Dynamic Aurora Ambient Glow */
+@keyframes aurora-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 15px rgba(0, 242, 254, 0.35)) drop-shadow(0 0 35px rgba(168, 85, 247, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(244, 63, 94, 0.45)) drop-shadow(0 0 50px rgba(0, 242, 254, 0.3));
+  }
+}
+
+.aurora-glow-pulse {
+  animation: aurora-pulse 6s ease-in-out infinite;
+}
+
+/* 3D Card Hover Pop */
+.hover-3d-pop {
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.hover-3d-pop:hover {
+  transform: translateY(-4px) scale(1.015) translateZ(10px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 0 25px -5px rgba(6, 182, 212, 0.35);
+}
+
+html.light .hover-3d-pop:hover {
+  box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.12), 0 0 20px -3px rgba(2, 132, 199, 0.2);
+}
+

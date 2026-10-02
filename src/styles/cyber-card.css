@@ -1,0 +1,193 @@
+/* 3D cyber-card styles */
+.cyber-card-container.noselect {
+  position: relative;
+  width: 210px;
+  height: 270px;
+  transition: 200ms;
+}
+
+.cyber-card-container.noselect:active {
+  width: 200px;
+  height: 260px;
+}
+
+#cyber-card {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 16px;
+  transition: 500ms;
+  background: linear-gradient(135deg, #090d16, #111827);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  overflow: hidden;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    inset 0 0 20px rgba(6, 182, 212, 0.05);
+}
+
+.card-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#cyber-prompt {
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  transition: 300ms ease-in-out;
+  position: absolute;
+  text-align: center;
+  color: rgba(6, 182, 212, 0.8);
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+}
+
+.cyber-title {
+  opacity: 0;
+  transition: 300ms ease-in-out;
+  position: absolute;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-align: center;
+  width: 100%;
+  padding-top: 24px;
+  background: linear-gradient(45deg, #06b6d4, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 15px rgba(6, 182, 212, 0.4));
+}
+
+.cyber-subtitle {
+  position: absolute;
+  bottom: 30px;
+  width: 100%;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 2px;
+  transform: translateY(20px);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cyber-highlight {
+  color: #06b6d4;
+  margin-left: 4px;
+  background: linear-gradient(90deg, #06b6d4, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: bold;
+}
+
+.cyber-glowing-elements {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cyber-glow-1,
+.cyber-glow-2,
+.cyber-glow-3 {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(6, 182, 212, 0.3) 0%,
+    transparent 70%
+  );
+  filter: blur(15px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cyber-glow-1 { top: -20px; left: -20px; }
+.cyber-glow-2 { top: 50%; right: -30px; transform: translateY(-50%); }
+.cyber-glow-3 { bottom: -20px; left: 30%; }
+
+.tracker:hover ~ #cyber-card .cyber-title {
+  opacity: 1;
+  transform: translateY(-5px);
+}
+
+.tracker:hover ~ #cyber-card .cyber-glowing-elements div {
+  opacity: 1;
+}
+
+#cyber-card::before {
+  content: "";
+  background: radial-gradient(
+    circle at center,
+    rgba(6, 182, 212, 0.15) 0%,
+    rgba(59, 130, 246, 0.05) 50%,
+    transparent 100%
+  );
+  filter: blur(20px);
+  opacity: 0;
+  width: 150%;
+  height: 150%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s ease;
+}
+
+.tracker:hover ~ #cyber-card::before {
+  opacity: 1;
+}
+
+.tracker {
+  position: absolute;
+  z-index: 200;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.tracker:hover ~ #cyber-card #cyber-prompt {
+  opacity: 0;
+}
+
+.tracker:hover ~ #cyber-card {
+  filter: brightness(1.1);
+}
+
+.cyber-canvas {
+  perspective: 800px;
+  inset: 0;
+  z-index: 200;
+  position: absolute;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+}
+
+.tr-1:hover ~ #cyber-card { transform: rotateX(15deg) rotateY(-8deg); }
+.tr-3:hover ~ #cyber-card { transform: rotateX(15deg) rotateY(0deg); }
+.tr-5:hover ~ #cyber-card { transform: rotateX(15deg) rotateY(8deg); }
+.tr-11:hover ~ #cyber-card { transform: rotateX(0deg) rotateY(-8deg); }
+.tr-13:hover ~ #cyber-card { transform: rotateX(0deg) rotateY(0deg); }
+.tr-15:hover ~ #cyber-card { transform: rotateX(0deg) rotateY(8deg); }
+.tr-21:hover ~ #cyber-card { transform: rotateX(-15deg) rotateY(-8deg); }
+.tr-23:hover ~ #cyber-card { transform: rotateX(-15deg) rotateY(0deg); }
+.tr-25:hover ~ #cyber-card { transform: rotateX(-15deg) rotateY(8deg); }
+
+.cyber-corner-elements span {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(6, 182, 212, 0.4);
+}
+
+.cyber-corner-elements span:nth-child(1) { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+.cyber-corner-elements span:nth-child(2) { top: 8px; right: 8px; border-left: 0; border-bottom: 0; }
+.cyber-corner-elements span:nth-child(3) { bottom: 8px; left: 8px; border-right: 0; border-top: 0; }
+.cyber-corner-elements span:nth-child(4) { bottom: 8px; right: 8px; border-left: 0; border-top: 0; }
