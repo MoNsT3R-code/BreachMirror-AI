@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@import "./styles/fonts.css";
+@import "./styles/design-tokens.css";
+
+/* Make dark:/light: utilities follow the app theme class instead of the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+/* All design decisions live in styles/design-tokens.css (see DESIGN.md). */
