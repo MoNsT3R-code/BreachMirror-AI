@@ -7,4 +7,4 @@ coverage/
 .env*
 !.env.example
 # Local, encrypted application data and its key: never commit
-data/
+/data/

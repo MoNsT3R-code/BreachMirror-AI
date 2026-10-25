@@ -59,12 +59,12 @@ export const ThreatSpeedWidget: React.FC<ThreatSpeedWidgetProps> = ({ onInjectSi
           Sensor
           <span className={`bm-chip ${live ? 'bm-sev bm-sev-safe' : ''}`}>{live ? 'Live' : 'Paused'}</span>
         </p>
-        <div className="mt-3 flex gap-2">
-          <button type="button" className="bm-btn bm-btn-sm flex-1" onClick={() => setLive(!live)}>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="bm-btn bm-btn-sm flex-auto whitespace-nowrap" onClick={() => setLive(!live)}>
             {live ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
             {live ? 'Pause' : 'Resume'}
           </button>
-          <button type="button" className="bm-btn bm-btn-sm bm-btn-primary" onClick={onInjectSimulatedBreach} title="Simulate a breach attempt">
+          <button type="button" className="bm-btn bm-btn-sm bm-btn-primary flex-auto whitespace-nowrap" onClick={onInjectSimulatedBreach} title="Simulate a breach attempt">
             <Zap className="h-3.5 w-3.5" aria-hidden="true" />
             Simulate
           </button>
