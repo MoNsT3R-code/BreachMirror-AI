@@ -332,7 +332,7 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         const user = getSession(token, ip, userAgent(request));
         return user
           ? send(response, 200, { user: publicUser(user) }, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Max-Age=${SESSION_MAX_AGE}; ${cookieOptions(request)}` })
-          : unauthorised();
+          : send(response, 200, { user: null }); // signed out is a normal state, not an error
       }
 
       if (method === 'POST' && route === '/auth/logout') {
