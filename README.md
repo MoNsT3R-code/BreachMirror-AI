@@ -8,7 +8,7 @@ A security-awareness and policy-training platform built as a single React applic
 ![Language](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript&logoColor=white)
 ![AI](https://img.shields.io/badge/AI-LangGraph%20Agentic%20RAG-1C3C3C)
 ![Security](https://img.shields.io/badge/Security-AES--256--GCM%20%2B%20Hash--Chained%20Audit-c49a2c)
-![Tests](https://img.shields.io/badge/Tests-37%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-55%20passing-brightgreen)
 ![Accessibility](https://img.shields.io/badge/Accessibility-WCAG%202.2%20AA-0f1c42)
 ![License](https://img.shields.io/badge/License-Not%20yet%20chosen-lightgrey)
 
@@ -30,6 +30,7 @@ The application also includes a learning journey (readiness audit, pledges, spee
 * [🤖 Policy Copilot](#-policy-copilot-agentic-rag-with-langgraph)
 * [🛟 Escalation and Security Support](#-escalation-and-security-support)
 * [🔐 Security](#-security)
+* [📡 Consent-based Endpoint Monitoring](#consent-based-endpoint-monitoring)
 * [📁 Repository Structure](#-repository-structure)
 * [🧰 Tech Stack](#-tech-stack)
 * [💻 System Requirements](#-system-requirements)
@@ -58,7 +59,7 @@ The application also includes a learning journey (readiness audit, pledges, spee
 │          SERVER · Vite plugin (server/auth-plugin.ts)          │
 ├────────────────────────────────────────────────────────────────┤
 │  CSRF check · rate limits · security headers                   │
-│  /auth/*              sessions, scrypt hashing, lockout        │
+│  /auth/*              sessions, scrypt hashing, lockout, 2FA  │
 │  /api/policy/*        LangGraph RAG (streamed and JSON)        │
 │  /api/support/*       tickets, Security Team console           │
 │  /api/profile         employee details (consent-gated)         │
@@ -91,6 +92,8 @@ The application also includes a learning journey (readiness audit, pledges, spee
 ✅ **Works Offline** - Every answer is grounded and cited with no API key needed. Adding `GEMINI_API_KEY` upgrades retrieval and generation.
 
 ✅ **Encrypted and Audited** - AES-256-GCM encryption at rest, a hash-chained audit log that detects tampering, and privacy controls for employee contact details.
+
+✅ **Two-factor authentication** - TOTP authenticator-app codes, one-time recovery codes, replay protection, encrypted secrets and atomic factor consumption across worker processes.
 
 ✅ **Learning Journey** - Readiness audit, pledges, speed drills, a certification exam with a printable certificate, a day streak and a security posture score.
 
@@ -186,6 +189,7 @@ Employees never receive fabricated or uncertain policy guidance. When the Copilo
 | **Integrity** | Tampered or swapped files raise an integrity error instead of being silently reset. |
 | **Audit log** | Each entry carries the HMAC of the previous one, so edits, deletions and reordering break the chain. Client IPs are stored only as HMACs. |
 | **Passwords** | Peppered scrypt hashing. Older hashes are upgraded on the next sign-in. Five failed attempts lock the account for 15 minutes. |
+| **Two-factor authentication** | TOTP secrets are encrypted at rest. Recovery codes are stored as hashes, consumed once, and protected against concurrent reuse with a cross-process authentication lock. |
 | **Sessions** | 256-bit random tokens stored only as hashes. `HttpOnly` and `SameSite=Strict` cookies, 30-minute idle expiry, 8-hour absolute expiry, and binding to the browser's user agent. |
 | **CSRF** | Every write requires a custom header, a same-origin `Origin` and same-origin Fetch Metadata. |
 | **Rate limits** | Per-client token buckets for sign-in, registration, password reset, Copilot and other writes. Over-limit requests receive HTTP 429 with `Retry-After`. |
@@ -204,6 +208,18 @@ Employees never receive fabricated or uncertain policy guidance. When the Copilo
 - Set `BM_TRUST_MTLS_PROXY=1` only when the reverse proxy strips incoming certificate headers and writes `X-BM-Client-Cert-Verified: SUCCESS` after successful mTLS verification.
 - Use `/api/security/privacy/export` and `/api/security/privacy/data` for user data portability and deletion requests.
 
+### Two-factor authentication
+
+Use an authenticator app with the authenticated 2FA routes:
+
+| Route | Purpose |
+| --- | --- |
+| `POST /auth/2fa/setup` | Creates a pending TOTP secret and returns an `otpauth://` URI. |
+| `POST /auth/2fa/enable` | Verifies the setup code and returns recovery codes once. |
+| `POST /auth/2fa/disable` | Requires a valid TOTP or unused recovery code. |
+
+Sessions are created only after password and second-factor verification succeed. TOTP replay markers and recovery-code consumption are persisted inside the same serialized authentication critical section. Store recovery codes in a password manager; they are never returned again.
+
 ---
 
 ## 📁 Repository Structure
@@ -211,11 +227,11 @@ Employees never receive fabricated or uncertain policy guidance. When the Copilo
 ```text
 server/
   auth-plugin.ts           HTTP routes, CSRF, rate limits, headers, SSE
-  auth-service.ts          accounts, sessions, lockout, password reset
+  auth-service.ts          accounts, sessions, lockout, password reset, 2FA
   policy-rag-service.ts    runs the LangGraph pipeline
   support-service.ts       tickets, assignment, privacy views, FAQs, reports
   rag/                     chunking, knowledge base, retrievers, graph
-  security/                encrypted storage, audit log, passwords, rate limits
+  security/                encrypted storage, audit log, passwords, TOTP, rate limits
 src/
   app.tsx                  shell and routing
   components/copilot/      Copilot workspace, pipeline view, escalation card
@@ -264,9 +280,13 @@ On Windows PowerShell, if `npm` is blocked by the execution policy, use `npm.cmd
 
 ### Step 2: Create an Account
 
-Open **http://localhost:3000/**, choose **Create an account** and register with an `@your-domain.com` email address. The username must match the part before the `@`. Then sign in.
+Open **http://localhost:3000/**, choose **Create an account** and register with an `@xyz.com` email address. The username must match the part before the `@`. Then sign in.
 
-### Step 3: Try the Security Team Console (optional)
+### Step 3: Enable 2FA (recommended)
+
+After signing in, use `/auth/2fa/setup`, add the returned URI to an authenticator app, confirm the code with `/auth/2fa/enable`, and save the recovery codes securely.
+
+### Step 4: Try the Security Team Console (optional)
 
 Register a second account, add its username to `.env` as `BM_SECURITY_TEAM=username`, restart the server and sign in as that user.
 
@@ -288,7 +308,10 @@ Set these in `.env`, and never commit that file. See [.env.example](.env.example
 | `BM_DATA_KEY` | 32-byte base64 master key for encryption. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. | Auto-generated development key |
 | `BM_DATA_DIR` | Location of encrypted data files. | `./data` |
 | `BM_TRUST_PROXY` | Set to `1` only behind a trusted reverse proxy. | Off |
+| `BM_TRUST_MTLS_PROXY` | Trust the reverse proxy's verified mTLS signal for endpoint agents. Enable only when the proxy strips client-supplied certificate headers. | Off |
 | `BM_SECURITY_TEAM` | Comma-separated usernames of Security Team members. | None (tickets wait unassigned) |
+| `BM_GITHUB_WEBHOOK_SECRET` | HMAC secret used to validate GitHub security webhooks. | Unset |
+| `BM_GITHUB_REPOSITORIES` | Comma-separated `owner/repository` allowlist for GitHub security events. | Unset |
 
 ---
 
@@ -299,8 +322,10 @@ Set these in `.env`, and never commit that file. See [.env.example](.env.example
 | `npm run dev` | Development server on port 3000. |
 | `npm run build` / `npm run preview` | Production build and local preview. |
 | `npm run lint` | TypeScript type check. |
-| `npm test` | 37 tests covering RAG evaluation and safety, Security Support, encryption, tamper detection, audit chain, password upgrades, rate limits, colour contrast, learning progress, the secret scanner and auth rules. |
+| `npm test` | 55 tests covering RAG evaluation and safety, Security Support, encryption, tamper detection, audit chain, password upgrades, TOTP 2FA race protection, rate limits, colour contrast, learning progress, release signatures and security rules. |
 | `npm run clean` | Removes `dist/`. |
+| `npm run backup:data` | Creates a backup archive of encrypted application data. |
+| `npm run restore:data` | Restores encrypted application data from a backup archive. |
 
 ---
 
@@ -323,6 +348,7 @@ Single-key shortcuts are ignored while typing or while a dialog is open.
 
 **Server (encrypted, in `data/`):**
 - **Accounts and audit:** `auth-users.json`, `auth-audit.json`
+- **2FA:** Encrypted TOTP secrets, pending setup state, replay markers and hashed recovery codes are stored with the account data.
 - **Security Support:** `support-tickets.json`, `support-faqs.json`, `kb-recommendations.json`
 - **Other:** `acknowledgements.json`, and `rag-embeddings.json` when Gemini is enabled
 - **Key:** `.bm-data.key` is for development only. Keep it out of any backup that leaves the machine. The `data/` folder is git-ignored.
@@ -346,7 +372,7 @@ Single-key shortcuts are ignored while typing or while a dialog is open.
 ## ⚠️ Scope and Limitations
 
 - Threat telemetry, risk scores and countermeasures are simulated for training.
-- Accounts and sessions are local to one server process and are not a production identity system.
+- Accounts and sessions are local to one server process and are not a production identity system. Move authentication storage to a transactional database before multi-instance deployment.
 - Security Support has no email or chat notifications. Updates appear as an in-app badge.
 - The Copilot answers only from the bundled policy text and approved FAQs, and it can still be wrong. Confirm important decisions with the appropriate policy owner.
 
@@ -355,7 +381,7 @@ Single-key shortcuts are ignored while typing or while a dialog is open.
 ## 📄 License
 
 No license has been chosen for this repository yet.
-# Consent-based endpoint monitoring
+## Consent-based endpoint monitoring
 
 BreachMirror supports opt-in endpoint enrollment without collecting Wi-Fi,
 administrator, or device passwords. An enrolled agent authenticates with a
