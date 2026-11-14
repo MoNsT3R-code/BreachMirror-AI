@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "backup:data": "node scripts/backup-data.mjs",
+    "restore:data": "node scripts/restore-data.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

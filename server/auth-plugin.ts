@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import crypto from 'node:crypto';
 import type { Plugin } from 'vite';
-import { authenticate, confirmPasswordReset, createUser, ensureSecurityAgentId, getSession, isSecurityAgent, logout, publicUser, requestPasswordReset, sessionThreadId, updateProfile, type AuthRole, type StoredUser } from './auth-service';
+import { authenticate, confirmPasswordReset, createUser, disableTwoFactor, enableTwoFactor, ensureSecurityAgentId, getSession, isSecurityAgent, logout, publicUser, requestPasswordReset, sessionThreadId, setupTwoFactor, updateProfile, type AuthRole, type StoredUser } from './auth-service';
 import { answerPolicyQuestion, conversationContext, corpusStats, PolicyAnswer, runPolicyGraph } from './policy-rag-service';
 import { listFaqs, referenceCatalog } from './rag/knowledge-base';
 import {
@@ -471,6 +471,34 @@ export function authPlugin(geminiApiKey?: string): Plugin {
       const body = await readBody(request);
       if (!body) return send(response, 400, { message: 'Invalid request.' });
 
+      if (method === 'POST' && route === '/auth/2fa/setup') {
+        const user = sessionUser();
+        if (!user) return unauthorised();
+        if (limited(response, 'login', ip)) return;
+        const result = setupTwoFactor(user.id);
+        return 'secret' in result ? send(response, 200, result) : send(response, 400, { message: result.message });
+      }
+
+      if (method === 'POST' && route === '/auth/2fa/enable') {
+        const user = sessionUser();
+        if (!user) return unauthorised();
+        if (limited(response, 'login', ip)) return;
+        const code = text(body.code, 20);
+        if (!code) return send(response, 400, { message: 'Enter the authenticator code.' });
+        const result = enableTwoFactor(user.id, code);
+        return 'recoveryCodes' in result ? send(response, 200, result) : send(response, 400, { message: result.message });
+      }
+
+      if (method === 'POST' && route === '/auth/2fa/disable') {
+        const user = sessionUser();
+        if (!user) return unauthorised();
+        if (limited(response, 'login', ip)) return;
+        const code = text(body.code, 40);
+        if (!code) return send(response, 400, { message: 'Enter the authenticator or recovery code.' });
+        const result = disableTwoFactor(user.id, code);
+        return 'message' in result ? send(response, 400, { message: result.message }) : send(response, 200, result);
+      }
+
       if (method === 'POST' && route === '/auth/register') {
         if (limited(response, 'register', ip)) return;
         const name = text(body.name, 80);
@@ -492,8 +520,9 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         const identifier = text(body.identifier, 254);
         const password = typeof body.password === 'string' && body.password.length <= 64 ? body.password : null;
         if (!identifier || !password) return send(response, 401, { message: 'Invalid username or password.' });
-        const result = authenticate(identifier, password, ip, userAgent(request));
-        if ('message' in result) return send(response, result.message.startsWith('Account temporarily locked') ? 423 : 401, { message: result.message });
+        const secondFactorCode = text(body.secondFactorCode, 40) ?? undefined;
+        const result = authenticate(identifier, password, ip, userAgent(request), secondFactorCode);
+        if ('message' in result) return send(response, result.message.startsWith('Account temporarily locked') ? 423 : 401, { code: result.code, message: result.message });
         return send(response, 200, { message: 'Login successful.', user: publicUser(result.user) }, { 'Set-Cookie': `${COOKIE_NAME}=${result.token}; Max-Age=${SESSION_MAX_AGE}; ${cookieOptions(request)}` });
       }
 

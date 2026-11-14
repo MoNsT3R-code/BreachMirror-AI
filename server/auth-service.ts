@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { appendAudit, AuditEvent } from './security/audit-log';
 import { hashPassword, verifyPassword } from './security/password';
 import { hmac, readSecureJson, writeSecureJson } from './security/secure-store';
+import { generateRecoveryCodes, generateSecret, hashRecoveryCode, otpauthUri, verifyTotp } from './security/totp';
 
 export type AuthRole = 'Incident Commander' | 'Threat Hunter' | 'SOC Security Lead' | 'Cloud Security Architect';
 
@@ -24,6 +25,12 @@ export interface StoredUser {
   profile?: EmployeeProfile;
   /** Pseudonymous Security Team ID (e.g. SEC-1042). The only agent identifier users ever see. */
   securityAgentId?: string;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  twoFactorPendingSecret?: string;
+  twoFactorRecoveryHashes?: string[];
+  twoFactorLastCodeHash?: string;
+  twoFactorLastCodeAt?: number;
 }
 
 export interface EmployeeProfile {
@@ -44,6 +51,7 @@ export interface PublicUser {
   role: AuthRole;
   isSecurityAgent: boolean;
   securityAgentId?: string;
+  twoFactorEnabled: boolean;
 }
 
 interface Session {
@@ -127,7 +135,7 @@ export function createUser(input: { name: string; username: string; email: strin
   return { ok: true, user };
 }
 
-export function authenticate(identifier: string, password: string, ip?: string, userAgent?: string): { ok: true; user: StoredUser; token: string } | { ok: false; message: string } {
+export function authenticate(identifier: string, password: string, ip?: string, userAgent?: string, secondFactorCode?: string): { ok: true; user: StoredUser; token: string } | { ok: false; message: string; code?: '2fa_required' } {
   const login = normalize(identifier);
   const storedUsers = users();
   const user = storedUsers.find(item => item.username === login || item.email === login);
@@ -165,6 +173,12 @@ export function authenticate(identifier: string, password: string, ip?: string, 
     delete user.passwordIterations;
     audit({ event: 'password_rehash', username: user.username, status: 'success', reason: 'upgraded_to_scrypt' }, ip);
   }
+  if (user.twoFactorEnabled) {
+    if (!secondFactorCode || !verifySecondFactor(user, secondFactorCode)) {
+      audit({ event: '2fa_verification', username: user.username, status: 'failed', reason: secondFactorCode ? 'invalid_code' : 'missing_code' }, ip);
+      return { ok: false, code: '2fa_required', message: 'A six-digit authenticator code is required.' };
+    }
+  }
   user.failedAttempts = 0;
   user.lockUntil = null;
   user.updatedAt = now;
@@ -174,6 +188,78 @@ export function authenticate(identifier: string, password: string, ip?: string, 
   sessions.set(hashToken(token), { userId: user.id, createdAt: time, lastActivity: time, agent: agentHash(userAgent) });
   audit({ event: 'login', username: user.username, status: 'success' }, ip);
   return { ok: true, user, token };
+}
+
+function verifySecondFactor(user: StoredUser, code: string): boolean {
+  if (user.twoFactorSecret && verifyTotp(user.twoFactorSecret, code)) {
+    const codeHash = hashRecoveryCode(code);
+    if (user.twoFactorLastCodeHash === codeHash && (user.twoFactorLastCodeAt ?? 0) > Date.now() - 90_000) return false;
+    user.twoFactorLastCodeHash = codeHash;
+    user.twoFactorLastCodeAt = Date.now();
+    const storedUsers = users();
+    const stored = storedUsers.find(item => item.id === user.id);
+    if (stored) {
+      stored.twoFactorLastCodeHash = user.twoFactorLastCodeHash;
+      stored.twoFactorLastCodeAt = user.twoFactorLastCodeAt;
+      saveUsers(storedUsers);
+    }
+    return true;
+  }
+  const hash = hashRecoveryCode(code);
+  const index = user.twoFactorRecoveryHashes?.indexOf(hash) ?? -1;
+  if (index < 0) return false;
+  user.twoFactorRecoveryHashes?.splice(index, 1);
+  const storedUsers = users();
+  const stored = storedUsers.find(item => item.id === user.id);
+  if (stored) {
+    stored.twoFactorRecoveryHashes = user.twoFactorRecoveryHashes;
+    saveUsers(storedUsers);
+  }
+  return true;
+}
+
+export function setupTwoFactor(userId: string): { ok: true; secret: string; otpauth: string } | { ok: false; message: string } {
+  const storedUsers = users();
+  const user = storedUsers.find(item => item.id === userId);
+  if (!user) return { ok: false, message: 'Account not found.' };
+  if (user.twoFactorEnabled) return { ok: false, message: 'Two-factor authentication is already enabled.' };
+  const secret = generateSecret();
+  user.twoFactorPendingSecret = secret;
+  user.updatedAt = new Date().toISOString();
+  saveUsers(storedUsers);
+  audit({ event: '2fa_setup_started', username: user.username, status: 'success' });
+  return { ok: true, secret, otpauth: otpauthUri(secret, user.email) };
+}
+
+export function enableTwoFactor(userId: string, code: string): { ok: true; recoveryCodes: string[] } | { ok: false; message: string } {
+  const storedUsers = users();
+  const user = storedUsers.find(item => item.id === userId);
+  if (!user?.twoFactorPendingSecret || !verifyTotp(user.twoFactorPendingSecret, code)) return { ok: false, message: 'The authenticator code is invalid.' };
+  const recoveryCodes = generateRecoveryCodes();
+  user.twoFactorSecret = user.twoFactorPendingSecret;
+  user.twoFactorPendingSecret = undefined;
+  user.twoFactorRecoveryHashes = recoveryCodes.map(hashRecoveryCode);
+  user.twoFactorEnabled = true;
+  user.updatedAt = new Date().toISOString();
+  saveUsers(storedUsers);
+  audit({ event: '2fa_enabled', username: user.username, status: 'success' });
+  return { ok: true, recoveryCodes };
+}
+
+export function disableTwoFactor(userId: string, code: string): { ok: true } | { ok: false; message: string } {
+  const storedUsers = users();
+  const user = storedUsers.find(item => item.id === userId);
+  if (!user || !user.twoFactorEnabled || !verifySecondFactor(user, code)) return { ok: false, message: 'The authenticator code is invalid.' };
+  user.twoFactorEnabled = false;
+  user.twoFactorSecret = undefined;
+  user.twoFactorPendingSecret = undefined;
+  user.twoFactorRecoveryHashes = undefined;
+  user.twoFactorLastCodeHash = undefined;
+  user.twoFactorLastCodeAt = undefined;
+  user.updatedAt = new Date().toISOString();
+  saveUsers(storedUsers);
+  audit({ event: '2fa_disabled', username: user.username, status: 'success' });
+  return { ok: true };
 }
 
 export function getSession(token: string | undefined, ip?: string, userAgent?: string): StoredUser | null {
@@ -277,7 +363,7 @@ export function getUserById(id: string): StoredUser | undefined {
 
 export function publicUser(user: StoredUser): PublicUser {
   const agent = isSecurityAgent(user);
-  return { id: user.id, name: user.name, email: user.email, role: user.role, isSecurityAgent: agent, securityAgentId: agent ? ensureSecurityAgentId(user.id) ?? undefined : undefined };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, isSecurityAgent: agent, securityAgentId: agent ? ensureSecurityAgentId(user.id) ?? undefined : undefined, twoFactorEnabled: user.twoFactorEnabled === true };
 }
 
 const PROFILE_TEXT = /^[\p{L}\p{N} &.,'()/-]{0,80}$/u;
