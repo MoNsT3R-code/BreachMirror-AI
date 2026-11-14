@@ -27,8 +27,9 @@ import { verifyAuditChain } from './security/audit-log';
 import { LimitName, takeToken } from './security/rate-limit';
 import { IntegrityError, storageInfo } from './security/secure-store';
 import { acknowledgePolicy, createEnrollment, deletePrivacyData, exportPrivacyData, ingestEvent, listAlerts, listEndpoints, purgeAlerts, recordExternalAlert, registerEndpoint, revokeEndpoint, rotateEnrollment, updateAlert, type SecurityAlert } from './security/endpoint-security';
-import { githubSecurityEvent, verifyGithubSignature } from './security/github-security';
-import { incrementMetric, metrics } from './observability';
+import { githubSecurityEvent, isAllowedGithubRepository, validDeliveryTimestamp, verifyGithubSignature } from './security/github-security';
+import { incrementMetric, metrics, prometheusMetrics } from './observability';
+import { can } from './security/authorization';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -202,6 +203,11 @@ export function authPlugin(geminiApiKey?: string): Plugin {
     const unauthorised = () => send(response, 401, { message: 'Session expired. Please login again.' });
 
     try {
+      if (method === 'GET' && route === '/metrics') {
+        response.statusCode = 200;
+        response.setHeader('Content-Type', 'text/plain; version=0.0.4');
+        return response.end(prometheusMetrics());
+      }
       if (method === 'GET' && route === '/local-api/health') return send(response, 200, { ...getHealth(Boolean(geminiApiKey)), metrics: metrics() });
 
       if (method === 'POST' && route === '/api/security/endpoints/register') {
@@ -245,6 +251,8 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
         incrementMetric('github.webhooks');
         const event = githubSecurityEvent(String(request.headers['x-github-event'] ?? 'unknown'), body ?? {});
+        if (!isAllowedGithubRepository(event.repository)) return send(response, 403, { message: 'GitHub repository is not allowlisted.' });
+        if (!validDeliveryTimestamp(request.headers['x-github-delivery-timestamp'] as string | null)) return send(response, 401, { message: 'GitHub webhook timestamp is missing or expired.' });
         const ownerId = process.env.BM_GITHUB_OWNER_ID;
         if (!ownerId) return send(response, 503, { message: 'GitHub security integration is not configured.' });
         const result = recordExternalAlert(ownerId, event.eventType, event.severity, event.description, text(request.headers['x-github-delivery'], 120) ?? crypto.randomUUID());
@@ -261,6 +269,8 @@ export function authPlugin(geminiApiKey?: string): Plugin {
       if (route === '/api/security/endpoints' || route === '/api/security/alerts' || route === '/api/security/policy/acknowledge' || route === '/api/security/privacy/export' || route === '/api/security/privacy/data' || endpointAction || alertAction) {
         const owner = sessionUser();
         if (!owner) return unauthorised();
+        if ((endpointAction || route === '/api/security/endpoints') && method !== 'GET' && !can(owner, 'manage_endpoints')) return send(response, 403, { message: 'Endpoint administration is not permitted for this account.' });
+        if (alertAction && method === 'POST' && !can(owner, 'manage_alerts')) return send(response, 403, { message: 'Alert management is not permitted for this account.' });
         if (method === 'GET' && route === '/api/security/endpoints') return send(response, 200, { endpoints: listEndpoints(owner.id) });
         if (method === 'GET' && route === '/api/security/alerts') return send(response, 200, { alerts: listAlerts(owner.id) });
         if (method === 'GET' && route === '/api/security/privacy/export') return send(response, 200, exportPrivacyData(owner.id), { 'Content-Disposition': 'attachment; filename="breachmirror-security-data.json"' });

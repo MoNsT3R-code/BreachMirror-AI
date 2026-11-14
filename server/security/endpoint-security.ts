@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { appendAudit } from './audit-log';
 import { readSecureJson, writeSecureJson } from './secure-store';
+import { enqueueNotification, type NotificationChannel } from './notification-outbox';
 
 export type EndpointSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -83,6 +84,17 @@ function save(file: SecurityFile): void {
   writeSecureJson(FILE, file);
 }
 
+function queueNotifications(alert: SecurityAlert): void {
+  const destinations: Array<[NotificationChannel, string | undefined]> = [
+    ['email', process.env.BM_ALERT_EMAIL],
+    ['slack', process.env.BM_ALERT_SLACK_WEBHOOK],
+    ['teams', process.env.BM_ALERT_TEAMS_WEBHOOK],
+  ];
+  destinations.forEach(([channel, destination]) => {
+    if (destination) enqueueNotification(channel, destination, { alertId: alert.id, severity: alert.severity, summary: alert.summary });
+  });
+}
+
 function validFingerprint(value: string): boolean {
   return /^[a-f0-9]{64}$/i.test(value);
 }
@@ -153,6 +165,7 @@ export function ingestEvent(token: string | null, fingerprint: string | null, in
   if (eventKey) endpoint.processedEventKeys = [...endpoint.processedEventKeys, eventKey].slice(-500);
   if (alert) file.alerts = [...file.alerts, alert].slice(-MAX_ALERTS);
   save(file);
+  if (alert) queueNotifications(alert);
   appendAudit({ event: 'endpoint_event', username: endpoint.ownerId, status: 'success', reason: eventType });
   return { ok: true, value: { alert } };
 }
@@ -218,6 +231,7 @@ export function recordExternalAlert(ownerId: string, eventType: string, severity
   const alert: SecurityAlert = { id: `ALT-${crypto.randomBytes(6).toString('hex')}`, endpointId: 'github', ownerId, createdAt: now(), severity, eventType, summary: `[${idempotencyKey}] ${summary}`, metadata: { deviceName: 'GitHub', platform: 'GitHub', version: 'web' }, status: 'OPEN', policyAcknowledged: false, history: [{ status: 'OPEN', actorId: ownerId, at: now() }] };
   file.alerts = [...file.alerts, alert].slice(-MAX_ALERTS);
   save(file);
+  queueNotifications(alert);
   appendAudit({ event: 'external_security_alert', username: ownerId, status: 'success', reason: eventType });
   return { ok: true, value: { alert } };
 }
