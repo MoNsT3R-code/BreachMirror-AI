@@ -25,10 +25,24 @@ test('high-severity events create alerts and remediation requires policy acknowl
   const created = security.createEnrollment('user-2', { deviceName: 'Phone', platform: 'Android', version: '14', certFingerprint: fingerprint });
   assert.equal(created.ok, true);
   if (!created.ok) return;
-  const denied = security.ingestEvent(created.value.enrollmentToken, fingerprint, { endpointId: created.value.endpointId, eventType: 'malware_detected', severity: 'CRITICAL', summary: 'Unsigned executable blocked', remediationRequested: true });
+  const registered = security.registerEndpoint(created.value.enrollmentToken, fingerprint, created.value.endpointId);
+  assert.equal(registered.ok, true);
+  if (!registered.ok) return;
+  const denied = security.ingestEvent(registered.value.accessToken, fingerprint, { endpointId: created.value.endpointId, eventType: 'malware_detected', severity: 'CRITICAL', summary: 'Unsigned executable blocked', remediationRequested: true, idempotencyKey: 'evt-1' });
   assert.equal(denied.ok, false);
   assert.equal(security.acknowledgePolicy('user-2').ok, true);
-  const accepted = security.ingestEvent(created.value.enrollmentToken, fingerprint, { endpointId: created.value.endpointId, eventType: 'malware_detected', severity: 'CRITICAL', summary: 'Unsigned executable blocked', remediationRequested: true });
+  const accepted = security.ingestEvent(registered.value.accessToken, fingerprint, { endpointId: created.value.endpointId, eventType: 'malware_detected', severity: 'CRITICAL', summary: 'Unsigned executable blocked', remediationRequested: true, idempotencyKey: 'evt-1' });
   assert.equal(accepted.ok, true);
   assert.equal(security.listAlerts('user-2')[0]?.metadata.region, undefined);
+  const replay = security.ingestEvent(registered.value.accessToken, fingerprint, { endpointId: created.value.endpointId, eventType: 'malware_detected', severity: 'CRITICAL', summary: 'Unsigned executable blocked', remediationRequested: true, idempotencyKey: 'evt-1' });
+  assert.equal(replay.ok, true);
+});
+
+test('privacy export and deletion remove endpoint-owned data', () => {
+  const created = security.createEnrollment('privacy-user', { deviceName: 'Tablet', platform: 'iOS', version: '18', certFingerprint: fingerprint });
+  assert.equal(created.ok, true);
+  assert.equal(security.exportPrivacyData('privacy-user').endpoints.length, 1);
+  const deleted = security.deletePrivacyData('privacy-user');
+  assert.equal(deleted.ok, true);
+  assert.equal(security.exportPrivacyData('privacy-user').endpoints.length, 0);
 });

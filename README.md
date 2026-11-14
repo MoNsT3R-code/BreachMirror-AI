@@ -201,6 +201,8 @@ Employees never receive fabricated or uncertain policy guidance. When the Copilo
 - Use the endpoint lifecycle APIs to rotate enrollment tokens, revoke devices, acknowledge alerts, and purge alerts older than the retention window.
 - Replace JSON storage with a transactional database before running multiple server instances. Keep encrypted backups and rotate `BM_DATA_KEY` through a secrets manager.
 - Enable the Security workflow for dependency auditing and CodeQL. Treat `npm audit` failures as release blockers.
+- Set `BM_TRUST_MTLS_PROXY=1` only when the reverse proxy strips incoming certificate headers and writes `X-BM-Client-Cert-Verified: SUCCESS` after successful mTLS verification.
+- Use `/api/security/privacy/export` and `/api/security/privacy/data` for user data portability and deletion requests.
 
 ---
 
