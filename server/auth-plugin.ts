@@ -289,8 +289,9 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         if (method === 'POST' && alertAction) {
           const body = await readBody(request);
           const statuses: SecurityAlert['status'][] = ['OPEN', 'INVESTIGATING', 'CONTAINED', 'RESOLVED'];
-          if (!statuses.includes(body?.status as SecurityAlert['status'])) return send(response, 400, { message: 'Choose a valid alert workflow status.' });
-          const result = updateAlert(owner.id, alertAction[1], body.status as SecurityAlert['status']);
+          const status = body?.status;
+          if (typeof status !== 'string' || !statuses.includes(status as SecurityAlert['status'])) return send(response, 400, { message: 'Choose a valid alert workflow status.' });
+          const result = updateAlert(owner.id, alertAction[1], status as SecurityAlert['status']);
           return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
         }
         if (method === 'DELETE' && route === '/api/security/alerts') {
