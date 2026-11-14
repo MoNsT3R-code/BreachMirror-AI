@@ -5,6 +5,7 @@ import { Chunk } from './corpus';
 import { chunkById, faqChunks } from './knowledge-base';
 import { bm25Search, Candidate, denseSearch, idf, LOCAL_VECTORS, maximalMarginalRelevance, reciprocalRankFusion } from './retrievers';
 import { expandTerms, relatedTerms, splitSentences, tokenize } from './text';
+import { sanitizeAiInput } from '../security/ai-guard';
 
 /* ------------------------------------------------------------------ types */
 
@@ -90,47 +91,25 @@ function configurable(config?: RunnableConfig): Configurable {
 
 /* ------------------------------------------------------------------ guard */
 
-const INJECTION_PATTERNS = [
-  /ignore (all |any |the )?(previous|prior|above) (instructions|prompts?|rules)/i,
-  /(reveal|show|print|repeat) (your|the) (system )?(prompt|instructions)/i,
-  /\b(jailbreak|dan mode|developer mode)\b/i,
-  /you are now\b/i,
-  /disregard (your|the) (rules|guidelines|instructions)/i,
-];
-
-const SECRET_PATTERNS: Array<[RegExp, string]> = [
-  [/AKIA[0-9A-Z]{16}/g, 'AWS access key'],
-  [/gh[pousr]_[A-Za-z0-9_]{20,}/g, 'GitHub token'],
-  [/sk-[A-Za-z0-9_-]{20,}/g, 'API secret key'],
-  [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g, 'private key'],
-  [/\b(password|passwd|pwd)\s*[:=]\s*\S+/gi, 'password'],
-  [/\b\d{3}-\d{2}-\d{4}\b/g, 'social security number'],
-];
-
-export function redactSecrets(text: string): { text: string; found: string[] } {
-  const found = new Set<string>();
-  let output = text;
-  for (const [pattern, label] of SECRET_PATTERNS) {
-    output = output.replace(pattern, () => {
-      found.add(label);
-      return '[REDACTED]';
-    });
-  }
-  return { text: output, found: [...found] };
-}
+export { redactSecrets } from '../security/ai-guard';
 
 const GREETING = /^(hi|hello|hey|thanks|thank you|thx|good (morning|afternoon|evening)|cheers)\b[\s!.?]*$/i;
 
 async function guard(state: GraphState): Promise<Partial<GraphState>> {
   const reset: Partial<GraphState> = { notice: '', queries: [], weights: [], candidates: [], selected: [], engine: '', answer: '', mode: 'none', strict: false, attempts: 0, grounding: { grounded: false, ratio: 0, checked: 0 }, confidence: 0, followUps: [], escalation: null };
-  const question = state.question.trim();
-  if (INJECTION_PATTERNS.some(pattern => pattern.test(question))) {
+  const sanitized = sanitizeAiInput(state.question, 500);
+  const question = sanitized.text.trim();
+  if (sanitized.blocked && sanitized.findings.includes('prompt injection')) {
     return { ...reset, route: 'blocked', safeQuestion: question, step: { node: 'guard', detail: 'Prompt-injection pattern detected, request blocked' } };
+  }
+  if (sanitized.blocked) {
+    return { ...reset, route: 'out_of_scope', safeQuestion: question, step: { node: 'guard', detail: 'Input exceeded the maximum length and was rejected' } };
   }
   if (GREETING.test(question)) {
     return { ...reset, route: 'greeting', safeQuestion: question, step: { node: 'guard', detail: 'Greeting, no retrieval needed' } };
   }
-  const { text, found } = redactSecrets(question);
+  const text = question;
+  const found = sanitized.findings.filter(finding => !['control characters', 'oversized input', 'prompt injection'].includes(finding));
   if (tokenize(text).length === 0) {
     return { ...reset, route: 'out_of_scope', safeQuestion: text, step: { node: 'guard', detail: 'Too little detail to search' } };
   }

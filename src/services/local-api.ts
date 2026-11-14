@@ -187,7 +187,8 @@ async function authRequest<T>(path: string, body?: Record<string, string>): Prom
 
 export const loginApi = (identifier: string, password: string): Promise<AuthResponse> => authRequest('/auth/login', { identifier, password });
 export const registerApi = (name: string, username: string, email: string, role: AuthRole, password: string, confirmPassword: string): Promise<{ message: string }> => authRequest('/auth/register', { name, username, email, role, password, confirmPassword });
-export const sessionApi = (): Promise<AuthResponse> => authRequest('/auth/session');
+/** Resolves with `user: null` when nobody is signed in. */
+export const sessionApi = (): Promise<{ user: AuthUser | null }> => authRequest('/auth/session');
 export const logoutApi = (): Promise<{ ok: boolean }> => authRequest('/auth/logout', {});
 export const requestPasswordResetApi = (identifier: string): Promise<{ message: string }> => authRequest('/auth/password-reset/request', { identifier });
 export const confirmPasswordResetApi = (token: string, password: string): Promise<{ message: string }> => authRequest('/auth/password-reset/confirm', { token, password });
