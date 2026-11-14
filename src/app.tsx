@@ -620,13 +620,13 @@ export default function App() {
   const handleLogout = async () => { await logoutApi().catch(() => undefined); setSession({ isLoggedIn: false, name: '', role: 'Incident Commander', avatarSeed: 'operative-1' }); };
 
   useEffect(() => {
-    sessionApi().then(result => handleLogin(result.user)).catch(() => undefined);
+    sessionApi().then(result => { if (result.user) handleLogin(result.user); }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
     if (!session.isLoggedIn) return undefined;
     const interval = window.setInterval(() => {
-      sessionApi().catch(() => { setSession({ isLoggedIn: false, name: '', role: 'Incident Commander', avatarSeed: 'operative-1' }); setSessionMessage('Session expired. Please login again.'); });
+      sessionApi().then(result => { if (!result.user) throw new Error('signed out'); }).catch(() => { setSession({ isLoggedIn: false, name: '', role: 'Incident Commander', avatarSeed: 'operative-1' }); setSessionMessage('Session expired. Please login again.'); });
     }, 5 * 60 * 1000);
     return () => window.clearInterval(interval);
   }, [session.isLoggedIn]);

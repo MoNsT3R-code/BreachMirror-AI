@@ -194,6 +194,16 @@ Employees never receive fabricated or uncertain policy guidance. When the Copilo
 
 **Before production**, add HTTPS, a real database with backups, a secrets manager for `BM_DATA_KEY`, persistent session storage, an email path for password resets and centralised logging. The current storage is designed for a single local process.
 
+### Production hardening
+
+- Enforce mutual TLS at the reverse proxy for endpoint agents; the application additionally binds events to the certificate fingerprint.
+- Configure `BM_GITHUB_WEBHOOK_SECRET` and install a GitHub App with least-privilege security-event permissions. Webhook payloads are signature-checked before processing.
+- Use the endpoint lifecycle APIs to rotate enrollment tokens, revoke devices, acknowledge alerts, and purge alerts older than the retention window.
+- Replace JSON storage with a transactional database before running multiple server instances. Keep encrypted backups and rotate `BM_DATA_KEY` through a secrets manager.
+- Enable the Security workflow for dependency auditing and CodeQL. Treat `npm audit` failures as release blockers.
+- Set `BM_TRUST_MTLS_PROXY=1` only when the reverse proxy strips incoming certificate headers and writes `X-BM-Client-Cert-Verified: SUCCESS` after successful mTLS verification.
+- Use `/api/security/privacy/export` and `/api/security/privacy/data` for user data portability and deletion requests.
+
 ---
 
 ## 📁 Repository Structure
@@ -345,3 +355,17 @@ Single-key shortcuts are ignored while typing or while a dialog is open.
 ## 📄 License
 
 No license has been chosen for this repository yet.
+# Consent-based endpoint monitoring
+
+BreachMirror supports opt-in endpoint enrollment without collecting Wi-Fi,
+administrator, or device passwords. An enrolled agent authenticates with a
+short-lived enrollment token and a SHA-256 client-certificate fingerprint,
+then submits only authorized security events. Store the certificate in the
+agent's OS keystore and enforce real mutual TLS at the reverse proxy; the
+application verifies the presented fingerprint as an additional binding.
+
+High-severity events are encrypted at rest, hash-audited, rate-limited, and
+available to the signed-in owner through the security alerts API. Approximate
+region metadata is optional and exact location is not collected. Remediation
+requests are rejected until the owner acknowledges the security policy.
+

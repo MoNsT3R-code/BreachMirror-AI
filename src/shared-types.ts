@@ -91,6 +91,7 @@ export interface AuthUser {
   role: AuthRole;
   isSecurityAgent?: boolean;
   securityAgentId?: string;
+  twoFactorEnabled: boolean;
 }
 
 export interface WidgetConfig {

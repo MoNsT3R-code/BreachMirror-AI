@@ -14,6 +14,7 @@ export const LIMITS = {
   ask: { capacity: 20, perMinute: 20 },
   write: { capacity: 60, perMinute: 60 },
   support: { capacity: 30, perMinute: 30 },
+  endpoint: { capacity: 120, perMinute: 120 },
 } as const;
 
 export type LimitName = keyof typeof LIMITS;

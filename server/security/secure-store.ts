@@ -40,6 +40,45 @@ function ensureDir(): void {
   fs.mkdirSync(dataDir(), { recursive: true, mode: 0o700 });
 }
 
+/**
+ * Serializes synchronous read/modify/write operations across processes sharing dataDir().
+ * Callers must keep the critical section bounded; lock recovery is fail-closed after timeout.
+ */
+export function withDataLock<T>(name: string, operation: () => T): T {
+  ensureDir();
+  const lockFile = path.join(dataDir(), `.${name}.lock`);
+  const deadline = Date.now() + 10_000;
+  const waitBuffer = new Int32Array(new SharedArrayBuffer(4));
+  let handle: number | undefined;
+
+  while (handle === undefined) {
+    try {
+      handle = fs.openSync(lockFile, 'wx', 0o600);
+      fs.writeSync(handle, String(process.pid));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      try {
+        if (Date.now() - fs.statSync(lockFile).mtimeMs > 30_000) fs.unlinkSync(lockFile);
+      } catch (statError) {
+        if ((statError as NodeJS.ErrnoException).code !== 'ENOENT') throw statError;
+      }
+      if (Date.now() >= deadline) throw new Error(`Timed out acquiring data lock: ${name}`);
+      Atomics.wait(waitBuffer, 0, 0, 10);
+    }
+  }
+
+  try {
+    return operation();
+  } finally {
+    fs.closeSync(handle);
+    try {
+      fs.unlinkSync(lockFile);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+}
+
 function masterKey(): { key: Buffer; source: 'env' | 'keyfile' } {
   const fromEnv = process.env.BM_DATA_KEY;
   if (fromEnv) {

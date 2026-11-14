@@ -1,0 +1,32 @@
+name: Disaster recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run backup or restore validation"
+        required: true
+        type: choice
+        options: [backup, restore]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate backup/restore scripts
+        run: |
+          node --check scripts/backup-data.mjs
+          node --check scripts/restore-data.mjs
+          mkdir -p data
+          printf '{"bm":"enc"}' > data/smoke.json
+          tar -czf /tmp/breachmirror-smoke.tar.gz -C data .
+          rm -rf data/*
+          tar -xzf /tmp/breachmirror-smoke.tar.gz -C data
+          test -f data/smoke.json

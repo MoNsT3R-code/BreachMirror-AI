@@ -5,6 +5,13 @@ export interface AuthResponse {
   message?: string;
 }
 
+export class AuthRequestError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+    this.name = 'AuthRequestError';
+  }
+}
+
 export interface PolicySource {
   id: string;
   label: string;
@@ -181,13 +188,17 @@ async function authRequest<T>(path: string, body?: Record<string, string>): Prom
     body: body ? JSON.stringify(body) : undefined,
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(typeof payload.message === 'string' ? payload.message : 'Unable to complete authentication request.');
+  if (!response.ok) throw new AuthRequestError(typeof payload.message === 'string' ? payload.message : 'Unable to complete authentication request.', typeof payload.code === 'string' ? payload.code : undefined);
   return payload as T;
 }
 
-export const loginApi = (identifier: string, password: string): Promise<AuthResponse> => authRequest('/auth/login', { identifier, password });
+export const loginApi = (identifier: string, password: string, secondFactorCode?: string): Promise<AuthResponse> => authRequest('/auth/login', { identifier, password, ...(secondFactorCode ? { secondFactorCode } : {}) });
+export const setupTwoFactorApi = (): Promise<{ secret: string; otpauth: string }> => authRequest('/auth/2fa/setup', {});
+export const enableTwoFactorApi = (code: string): Promise<{ recoveryCodes: string[] }> => authRequest('/auth/2fa/enable', { code });
+export const disableTwoFactorApi = (code: string): Promise<{ ok: boolean }> => authRequest('/auth/2fa/disable', { code });
 export const registerApi = (name: string, username: string, email: string, role: AuthRole, password: string, confirmPassword: string): Promise<{ message: string }> => authRequest('/auth/register', { name, username, email, role, password, confirmPassword });
-export const sessionApi = (): Promise<AuthResponse> => authRequest('/auth/session');
+/** Resolves with `user: null` when nobody is signed in. */
+export const sessionApi = (): Promise<{ user: AuthUser | null }> => authRequest('/auth/session');
 export const logoutApi = (): Promise<{ ok: boolean }> => authRequest('/auth/logout', {});
 export const requestPasswordResetApi = (identifier: string): Promise<{ message: string }> => authRequest('/auth/password-reset/request', { identifier });
 export const confirmPasswordResetApi = (token: string, password: string): Promise<{ message: string }> => authRequest('/auth/password-reset/confirm', { token, password });

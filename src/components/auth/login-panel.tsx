@@ -6,7 +6,7 @@ import { SceneryBackground } from '../shell/scenery-background';
 import { XYZBackdrop } from '../shell/xyz-backdrop';
 import { useTheme } from '../../context/theme-context';
 import { AuthRole } from '../../shared-types';
-import { confirmPasswordResetApi, loginApi, registerApi, requestPasswordResetApi } from '../../services/local-api';
+import { AuthRequestError, confirmPasswordResetApi, loginApi, registerApi, requestPasswordResetApi } from '../../services/local-api';
 
 interface LoginPanelProps {
   onLogin: (user: { id: string; name: string; email: string; role: AuthRole }) => void;
@@ -59,6 +59,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({ onLogin, initialName = '
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [twoFactorCode, setTwoFactorCode] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [resetToken, setResetToken] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<AuthRole>(PRESET_ROLES[0]);
@@ -67,6 +68,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({ onLogin, initialName = '
   const [isError, setIsError] = useState<boolean>(false);
   const [isAuthorizing, setIsAuthorizing] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const { resolvedTheme, scenery } = useTheme();
   const messageId = useId();
 
@@ -79,7 +81,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({ onLogin, initialName = '
     setIsError(false);
     try {
       if (mode === 'login') {
-        const result = await loginApi(email, password);
+        const result = await loginApi(email, password, twoFactorCode || undefined);
         setMessage(result.message ?? 'Login successful.');
         await new Promise(resolve => window.setTimeout(resolve, 350));
         onLogin(result.user);
@@ -114,7 +116,12 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({ onLogin, initialName = '
       }
     } catch (error) {
       setIsError(true);
-      setMessage(error instanceof Error ? error.message : 'Unable to complete authentication request.');
+      if (error instanceof AuthRequestError && error.code === '2fa_required') {
+        setRequiresTwoFactor(true);
+        setMessage('Enter the six-digit code from your authenticator app, or an unused recovery code.');
+      } else {
+        setMessage(error instanceof Error ? error.message : 'Unable to complete authentication request.');
+      }
     } finally {
       setIsAuthorizing(false);
     }
@@ -128,6 +135,8 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({ onLogin, initialName = '
     setIsError(false);
     setPassword('');
     setConfirmPassword('');
+    setTwoFactorCode('');
+    setRequiresTwoFactor(false);
   };
 
   const title = isRegistration ? 'Create your training account' : isReset ? 'Reset your password' : 'Sign in';
@@ -258,6 +267,12 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({ onLogin, initialName = '
             {isRegistration && (
               <Field label="Confirm password" htmlFor="register-confirm-password-input">
                 <input id="register-confirm-password-input" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Re-enter password" maxLength={64} required autoComplete="new-password" aria-invalid={isError} className={INPUT_CLASS} />
+              </Field>
+            )}
+
+            {mode === 'login' && requiresTwoFactor && (
+              <Field label="Authenticator code" htmlFor="two-factor-code-input" hint="Use your six-digit TOTP code or one unused recovery code.">
+                <input id="two-factor-code-input" inputMode="numeric" autoComplete="one-time-code" value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\s/g, '').slice(0, 40))} className={INPUT_CLASS} required />
               </Field>
             )}
 

@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import crypto from 'node:crypto';
 import type { Plugin } from 'vite';
-import { authenticate, confirmPasswordReset, createUser, ensureSecurityAgentId, getSession, isSecurityAgent, logout, publicUser, requestPasswordReset, sessionThreadId, updateProfile, type AuthRole, type StoredUser } from './auth-service';
+import { authenticate, confirmPasswordReset, createUser, disableTwoFactor, enableTwoFactor, ensureSecurityAgentId, getSession, isSecurityAgent, logout, publicUser, requestPasswordReset, sessionThreadId, setupTwoFactor, updateProfile, type AuthRole, type StoredUser } from './auth-service';
 import { answerPolicyQuestion, conversationContext, corpusStats, PolicyAnswer, runPolicyGraph } from './policy-rag-service';
 import { listFaqs, referenceCatalog } from './rag/knowledge-base';
 import {
@@ -25,6 +26,10 @@ import { getHealth, listAcknowledgements, recordAcknowledgement } from './ops-se
 import { verifyAuditChain } from './security/audit-log';
 import { LimitName, takeToken } from './security/rate-limit';
 import { IntegrityError, storageInfo } from './security/secure-store';
+import { acknowledgePolicy, createEnrollment, deletePrivacyData, exportPrivacyData, ingestEvent, listAlerts, listEndpoints, purgeAlerts, recordExternalAlert, registerEndpoint, revokeEndpoint, rotateEnrollment, updateAlert, type SecurityAlert } from './security/endpoint-security';
+import { githubSecurityEvent, isAllowedGithubRepository, validDeliveryTimestamp, verifyGithubSignature } from './security/github-security';
+import { incrementMetric, metrics, prometheusMetrics } from './observability';
+import { can } from './security/authorization';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -47,6 +52,7 @@ type Middleware = (request: IncomingMessage, response: ServerResponse, next: () 
 
 /** Proxy headers (X-Forwarded-*) are only trusted when the app is deployed behind a known reverse proxy. */
 const TRUST_PROXY = process.env.BM_TRUST_PROXY === '1';
+const TRUST_MTLS_PROXY = process.env.BM_TRUST_MTLS_PROXY === '1';
 
 function isHttps(request: IncomingMessage): boolean {
   return (TRUST_PROXY && request.headers['x-forwarded-proto'] === 'https') || Boolean((request.socket as { encrypted?: boolean }).encrypted);
@@ -77,18 +83,28 @@ function userAgent(request: IncomingMessage): string {
   return String(request.headers['user-agent'] ?? '');
 }
 
+function verifiedClientCertificate(request: IncomingMessage): boolean {
+  return TRUST_MTLS_PROXY && request.headers['x-bm-client-cert-verified'] === 'SUCCESS';
+}
+
 async function readBody(request: IncomingMessage): Promise<Record<string, unknown> | null> {
-  let body = '';
-  for await (const chunk of request) {
-    body += chunk;
-    if (body.length > 16_384) return null;
-  }
+  const body = await readRawBody(request);
+  if (body === null) return null;
   try {
     const parsed: unknown = JSON.parse(body || '{}');
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+}
+
+async function readRawBody(request: IncomingMessage): Promise<string | null> {
+  let body = '';
+  for await (const chunk of request) {
+    body += chunk;
+    if (body.length > 16_384) return null;
+  }
+  return body;
 }
 
 function text(value: unknown, max = 120): string | null {
@@ -178,17 +194,129 @@ export function authPlugin(geminiApiKey?: string): Plugin {
     const ip = clientIp(request);
     const method = request.method ?? 'GET';
 
-    if (method === 'POST' && !isSameOriginWrite(request)) return send(response, 403, { message: 'Request blocked: cross-site or missing request header.' });
+    const isEndpointEvent = method === 'POST' && route === '/api/security/endpoints/events';
+    const isEndpointRegister = method === 'POST' && route === '/api/security/endpoints/register';
+    const isGithubWebhook = method === 'POST' && route === '/api/integrations/github/security';
+    if (method === 'POST' && !isEndpointEvent && !isEndpointRegister && !isGithubWebhook && !isSameOriginWrite(request)) return send(response, 403, { message: 'Request blocked: cross-site or missing request header.' });
 
     const sessionUser = (): StoredUser | null => getSession(getCookie(request), ip, userAgent(request));
     const unauthorised = () => send(response, 401, { message: 'Session expired. Please login again.' });
 
     try {
-      if (method === 'GET' && route === '/local-api/health') return send(response, 200, getHealth(Boolean(geminiApiKey)));
+      if (method === 'GET' && route === '/metrics') {
+        response.statusCode = 200;
+        response.setHeader('Content-Type', 'text/plain; version=0.0.4');
+        return response.end(prometheusMetrics());
+      }
+      if (method === 'GET' && route === '/local-api/health') return send(response, 200, { ...getHealth(Boolean(geminiApiKey)), metrics: metrics() });
+
+      if (method === 'POST' && route === '/api/security/endpoints/register') {
+        if (limited(response, 'endpoint', clientIp(request))) return;
+        if (!verifiedClientCertificate(request)) return send(response, 403, { message: 'A verified mutual-TLS client certificate is required.' });
+        const body = await readBody(request);
+        const result = registerEndpoint(
+          text(request.headers['x-bm-enrollment-token'], 200),
+          text(request.headers['x-bm-client-cert-sha256'], 64),
+          text(body?.endpointId, 40) ?? '',
+        );
+        return 'value' in result ? send(response, 201, result.value) : send(response, result.status, { message: result.message });
+      }
+
+      if (isEndpointEvent) {
+        if (limited(response, 'endpoint', clientIp(request))) return;
+        if (!verifiedClientCertificate(request)) return send(response, 403, { message: 'A verified mutual-TLS client certificate is required.' });
+        const body = await readBody(request);
+        if (!body) return send(response, 400, { message: 'Invalid endpoint event.' });
+        const result = ingestEvent(
+          text(request.headers['x-bm-agent-token'], 200),
+          text(request.headers['x-bm-client-cert-sha256'], 64),
+          {
+            endpointId: text(body.endpointId, 40) ?? '',
+            eventType: text(body.eventType, 50) ?? '',
+            severity: body.severity as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+            summary: text(body.summary, 300) ?? '',
+            metadata: typeof body.metadata === 'object' && body.metadata !== null ? body.metadata as Record<string, string> : undefined,
+            remediationRequested: body.remediationRequested === true,
+            idempotencyKey: text(request.headers['idempotency-key'], 120) ?? text(body.idempotencyKey, 120) ?? undefined,
+          },
+        );
+        incrementMetric('endpoint.events');
+        return 'value' in result ? send(response, 202, result.value) : send(response, result.status, { message: result.message });
+      }
+
+      if (isGithubWebhook) {
+        const raw = await readRawBody(request);
+        if (raw === null || !verifyGithubSignature(raw, text(request.headers['x-hub-signature-256'], 100), process.env.BM_GITHUB_WEBHOOK_SECRET)) return send(response, 401, { message: 'Invalid GitHub webhook signature.' });
+        const parsed = JSON.parse(raw) as unknown;
+        const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+        incrementMetric('github.webhooks');
+        const event = githubSecurityEvent(String(request.headers['x-github-event'] ?? 'unknown'), body ?? {});
+        if (!isAllowedGithubRepository(event.repository)) return send(response, 403, { message: 'GitHub repository is not allowlisted.' });
+        if (!validDeliveryTimestamp(request.headers['x-github-delivery-timestamp'] as string | null)) return send(response, 401, { message: 'GitHub webhook timestamp is missing or expired.' });
+        const ownerId = process.env.BM_GITHUB_OWNER_ID;
+        if (!ownerId) return send(response, 503, { message: 'GitHub security integration is not configured.' });
+        const result = recordExternalAlert(ownerId, event.eventType, event.severity, event.description, text(request.headers['x-github-delivery'], 120) ?? crypto.randomUUID());
+        return 'value' in result ? send(response, 202, { event: result.value.alert }) : send(response, result.status, { message: result.message });
+      }
 
       if (method === 'GET' && route === '/api/security/status') {
         if (!sessionUser()) return unauthorised();
         return send(response, 200, { storage: storageInfo(), auditChain: verifyAuditChain(), rag: { chunks: corpusStats().chunks, gemini: Boolean(geminiApiKey) } });
+      }
+
+      const endpointAction = route.match(/^\/api\/security\/endpoints\/(END-[a-f0-9]+)\/(rotate|revoke)$/i);
+      const alertAction = route.match(/^\/api\/security\/alerts\/(ALT-[a-f0-9]+)$/i);
+      if (route === '/api/security/endpoints' || route === '/api/security/alerts' || route === '/api/security/policy/acknowledge' || route === '/api/security/privacy/export' || route === '/api/security/privacy/data' || endpointAction || alertAction) {
+        const owner = sessionUser();
+        if (!owner) return unauthorised();
+        if ((endpointAction || route === '/api/security/endpoints') && method !== 'GET' && !can(owner, 'manage_endpoints')) return send(response, 403, { message: 'Endpoint administration is not permitted for this account.' });
+        if (alertAction && method === 'POST' && !can(owner, 'manage_alerts')) return send(response, 403, { message: 'Alert management is not permitted for this account.' });
+        if (method === 'GET' && route === '/api/security/endpoints') return send(response, 200, { endpoints: listEndpoints(owner.id) });
+        if (method === 'GET' && route === '/api/security/alerts') return send(response, 200, { alerts: listAlerts(owner.id) });
+        if (method === 'GET' && route === '/api/security/privacy/export') return send(response, 200, exportPrivacyData(owner.id), { 'Content-Disposition': 'attachment; filename="breachmirror-security-data.json"' });
+        if (method === 'DELETE' && route === '/api/security/privacy/data') {
+          const result = deletePrivacyData(owner.id);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && endpointAction?.[2] === 'rotate') {
+          const result = rotateEnrollment(owner.id, endpointAction[1]);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && endpointAction?.[2] === 'revoke') {
+          const result = revokeEndpoint(owner.id, endpointAction[1]);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && alertAction) {
+          const body = await readBody(request);
+          const statuses: SecurityAlert['status'][] = ['OPEN', 'INVESTIGATING', 'CONTAINED', 'RESOLVED'];
+          if (!statuses.includes(body?.status as SecurityAlert['status'])) return send(response, 400, { message: 'Choose a valid alert workflow status.' });
+          const result = updateAlert(owner.id, alertAction[1], body.status as SecurityAlert['status']);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'DELETE' && route === '/api/security/alerts') {
+          const before = text(new URL(request.url ?? '', 'http://local').searchParams.get('before'), 40);
+          const beforeDate = before ? new Date(before) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+          if (Number.isNaN(beforeDate.getTime())) return send(response, 400, { message: 'Invalid retention date.' });
+          const result = purgeAlerts(owner.id, beforeDate);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && route === '/api/security/policy/acknowledge') {
+          const result = acknowledgePolicy(owner.id);
+          return 'value' in result ? send(response, 201, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && route === '/api/security/endpoints') {
+          if (limited(response, 'write', ip)) return;
+          const body = await readBody(request);
+          if (!body) return send(response, 400, { message: 'Invalid enrollment request.' });
+          const result = createEnrollment(owner.id, {
+            deviceName: typeof body.deviceName === 'string' ? body.deviceName : '',
+            platform: typeof body.platform === 'string' ? body.platform : '',
+            version: typeof body.version === 'string' ? body.version : '',
+            region: typeof body.region === 'string' ? body.region : undefined,
+            certFingerprint: typeof body.certFingerprint === 'string' ? body.certFingerprint : '',
+          });
+          return 'value' in result ? send(response, 201, result.value) : send(response, result.status, { message: result.message });
+        }
       }
 
       if (method === 'GET' && route === '/api/breaches/acknowledgements') {
@@ -332,7 +460,7 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         const user = getSession(token, ip, userAgent(request));
         return user
           ? send(response, 200, { user: publicUser(user) }, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Max-Age=${SESSION_MAX_AGE}; ${cookieOptions(request)}` })
-          : unauthorised();
+          : send(response, 200, { user: null }); // signed out is a normal state, not an error
       }
 
       if (method === 'POST' && route === '/auth/logout') {
@@ -342,6 +470,34 @@ export function authPlugin(geminiApiKey?: string): Plugin {
 
       const body = await readBody(request);
       if (!body) return send(response, 400, { message: 'Invalid request.' });
+
+      if (method === 'POST' && route === '/auth/2fa/setup') {
+        const user = sessionUser();
+        if (!user) return unauthorised();
+        if (limited(response, 'login', ip)) return;
+        const result = setupTwoFactor(user.id);
+        return 'secret' in result ? send(response, 200, result) : send(response, 400, { message: result.message });
+      }
+
+      if (method === 'POST' && route === '/auth/2fa/enable') {
+        const user = sessionUser();
+        if (!user) return unauthorised();
+        if (limited(response, 'login', ip)) return;
+        const code = text(body.code, 20);
+        if (!code) return send(response, 400, { message: 'Enter the authenticator code.' });
+        const result = enableTwoFactor(user.id, code);
+        return 'recoveryCodes' in result ? send(response, 200, result) : send(response, 400, { message: result.message });
+      }
+
+      if (method === 'POST' && route === '/auth/2fa/disable') {
+        const user = sessionUser();
+        if (!user) return unauthorised();
+        if (limited(response, 'login', ip)) return;
+        const code = text(body.code, 40);
+        if (!code) return send(response, 400, { message: 'Enter the authenticator or recovery code.' });
+        const result = disableTwoFactor(user.id, code);
+        return 'message' in result ? send(response, 400, { message: result.message }) : send(response, 200, result);
+      }
 
       if (method === 'POST' && route === '/auth/register') {
         if (limited(response, 'register', ip)) return;
@@ -364,8 +520,9 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         const identifier = text(body.identifier, 254);
         const password = typeof body.password === 'string' && body.password.length <= 64 ? body.password : null;
         if (!identifier || !password) return send(response, 401, { message: 'Invalid username or password.' });
-        const result = authenticate(identifier, password, ip, userAgent(request));
-        if ('message' in result) return send(response, result.message.startsWith('Account temporarily locked') ? 423 : 401, { message: result.message });
+        const secondFactorCode = text(body.secondFactorCode, 40) ?? undefined;
+        const result = authenticate(identifier, password, ip, userAgent(request), secondFactorCode);
+        if ('message' in result) return send(response, result.message.startsWith('Account temporarily locked') ? 423 : 401, { code: result.code, message: result.message });
         return send(response, 200, { message: 'Login successful.', user: publicUser(result.user) }, { 'Set-Cookie': `${COOKIE_NAME}=${result.token}; Max-Age=${SESSION_MAX_AGE}; ${cookieOptions(request)}` });
       }
 
