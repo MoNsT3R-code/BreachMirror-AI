@@ -345,3 +345,17 @@ Single-key shortcuts are ignored while typing or while a dialog is open.
 ## 📄 License
 
 No license has been chosen for this repository yet.
+# Consent-based endpoint monitoring
+
+BreachMirror supports opt-in endpoint enrollment without collecting Wi-Fi,
+administrator, or device passwords. An enrolled agent authenticates with a
+short-lived enrollment token and a SHA-256 client-certificate fingerprint,
+then submits only authorized security events. Store the certificate in the
+agent's OS keystore and enforce real mutual TLS at the reverse proxy; the
+application verifies the presented fingerprint as an additional binding.
+
+High-severity events are encrypted at rest, hash-audited, rate-limited, and
+available to the signed-in owner through the security alerts API. Approximate
+region metadata is optional and exact location is not collected. Remediation
+requests are rejected until the owner acknowledges the security policy.
+

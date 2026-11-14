@@ -25,6 +25,7 @@ import { getHealth, listAcknowledgements, recordAcknowledgement } from './ops-se
 import { verifyAuditChain } from './security/audit-log';
 import { LimitName, takeToken } from './security/rate-limit';
 import { IntegrityError, storageInfo } from './security/secure-store';
+import { acknowledgePolicy, createEnrollment, ingestEvent, listAlerts, listEndpoints } from './security/endpoint-security';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -178,7 +179,8 @@ export function authPlugin(geminiApiKey?: string): Plugin {
     const ip = clientIp(request);
     const method = request.method ?? 'GET';
 
-    if (method === 'POST' && !isSameOriginWrite(request)) return send(response, 403, { message: 'Request blocked: cross-site or missing request header.' });
+    const isEndpointEvent = method === 'POST' && route === '/api/security/endpoints/events';
+    if (method === 'POST' && !isEndpointEvent && !isSameOriginWrite(request)) return send(response, 403, { message: 'Request blocked: cross-site or missing request header.' });
 
     const sessionUser = (): StoredUser | null => getSession(getCookie(request), ip, userAgent(request));
     const unauthorised = () => send(response, 401, { message: 'Session expired. Please login again.' });
@@ -186,9 +188,52 @@ export function authPlugin(geminiApiKey?: string): Plugin {
     try {
       if (method === 'GET' && route === '/local-api/health') return send(response, 200, getHealth(Boolean(geminiApiKey)));
 
+      if (isEndpointEvent) {
+        if (limited(response, 'endpoint', clientIp(request))) return;
+        const body = await readBody(request);
+        if (!body) return send(response, 400, { message: 'Invalid endpoint event.' });
+        const result = ingestEvent(
+          text(request.headers['x-bm-agent-token'], 200),
+          text(request.headers['x-bm-client-cert-sha256'], 64),
+          {
+            endpointId: text(body.endpointId, 40) ?? '',
+            eventType: text(body.eventType, 50) ?? '',
+            severity: body.severity as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+            summary: text(body.summary, 300) ?? '',
+            metadata: typeof body.metadata === 'object' && body.metadata !== null ? body.metadata as Record<string, string> : undefined,
+            remediationRequested: body.remediationRequested === true,
+          },
+        );
+        return 'value' in result ? send(response, 202, result.value) : send(response, result.status, { message: result.message });
+      }
+
       if (method === 'GET' && route === '/api/security/status') {
         if (!sessionUser()) return unauthorised();
         return send(response, 200, { storage: storageInfo(), auditChain: verifyAuditChain(), rag: { chunks: corpusStats().chunks, gemini: Boolean(geminiApiKey) } });
+      }
+
+      if (route === '/api/security/endpoints' || route === '/api/security/alerts' || route === '/api/security/policy/acknowledge') {
+        const owner = sessionUser();
+        if (!owner) return unauthorised();
+        if (method === 'GET' && route === '/api/security/endpoints') return send(response, 200, { endpoints: listEndpoints(owner.id) });
+        if (method === 'GET' && route === '/api/security/alerts') return send(response, 200, { alerts: listAlerts(owner.id) });
+        if (method === 'POST' && route === '/api/security/policy/acknowledge') {
+          const result = acknowledgePolicy(owner.id);
+          return 'value' in result ? send(response, 201, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && route === '/api/security/endpoints') {
+          if (limited(response, 'write', ip)) return;
+          const body = await readBody(request);
+          if (!body) return send(response, 400, { message: 'Invalid enrollment request.' });
+          const result = createEnrollment(owner.id, {
+            deviceName: typeof body.deviceName === 'string' ? body.deviceName : '',
+            platform: typeof body.platform === 'string' ? body.platform : '',
+            version: typeof body.version === 'string' ? body.version : '',
+            region: typeof body.region === 'string' ? body.region : undefined,
+            certFingerprint: typeof body.certFingerprint === 'string' ? body.certFingerprint : '',
+          });
+          return 'value' in result ? send(response, 201, result.value) : send(response, result.status, { message: result.message });
+        }
       }
 
       if (method === 'GET' && route === '/api/breaches/acknowledgements') {
