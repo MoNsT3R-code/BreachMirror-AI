@@ -147,6 +147,48 @@ export function acknowledgePolicy(ownerId: string): Result<{ ok: true }> {
   return { ok: true, value: { ok: true } };
 }
 
+export function rotateEnrollment(ownerId: string, endpointId: string): Result<{ enrollmentToken: string; expiresAt: string }> {
+  const file = load();
+  const endpoint = file.endpoints.find(item => item.id === endpointId && item.ownerId === ownerId && !item.revokedAt);
+  if (!endpoint) return fail(404, 'Endpoint not found.');
+  const token = crypto.randomBytes(32).toString('base64url');
+  endpoint.tokenHash = hash(token);
+  endpoint.tokenExpiresAt = Date.now() + TOKEN_TTL_MS;
+  save(file);
+  appendAudit({ event: 'endpoint_token_rotated', username: ownerId, status: 'success', reason: endpointId });
+  return { ok: true, value: { enrollmentToken: token, expiresAt: new Date(endpoint.tokenExpiresAt).toISOString() } };
+}
+
+export function revokeEndpoint(ownerId: string, endpointId: string): Result<{ ok: true }> {
+  const file = load();
+  const endpoint = file.endpoints.find(item => item.id === endpointId && item.ownerId === ownerId && !item.revokedAt);
+  if (!endpoint) return fail(404, 'Endpoint not found.');
+  endpoint.revokedAt = now();
+  save(file);
+  appendAudit({ event: 'endpoint_revoked', username: ownerId, status: 'success', reason: endpointId });
+  return { ok: true, value: { ok: true } };
+}
+
+export function updateAlert(ownerId: string, alertId: string, status: 'OPEN' | 'ACKNOWLEDGED'): Result<{ ok: true }> {
+  const file = load();
+  const alert = file.alerts.find(item => item.id === alertId && item.ownerId === ownerId);
+  if (!alert) return fail(404, 'Alert not found.');
+  alert.status = status;
+  save(file);
+  appendAudit({ event: 'alert_status_changed', username: ownerId, status: 'success', reason: `${alertId}:${status}` });
+  return { ok: true, value: { ok: true } };
+}
+
+export function purgeAlerts(ownerId: string, before: Date): Result<{ deleted: number }> {
+  const file = load();
+  const beforeCount = file.alerts.length;
+  file.alerts = file.alerts.filter(alert => alert.ownerId !== ownerId || Date.parse(alert.createdAt) >= before.getTime());
+  save(file);
+  const deleted = beforeCount - file.alerts.length;
+  appendAudit({ event: 'alert_retention_purge', username: ownerId, status: 'success', reason: String(deleted) });
+  return { ok: true, value: { deleted } };
+}
+
 export function listAlerts(ownerId: string): SecurityAlert[] {
   return load().alerts.filter(alert => alert.ownerId === ownerId).slice(-100).reverse();
 }

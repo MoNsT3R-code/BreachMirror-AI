@@ -25,7 +25,9 @@ import { getHealth, listAcknowledgements, recordAcknowledgement } from './ops-se
 import { verifyAuditChain } from './security/audit-log';
 import { LimitName, takeToken } from './security/rate-limit';
 import { IntegrityError, storageInfo } from './security/secure-store';
-import { acknowledgePolicy, createEnrollment, ingestEvent, listAlerts, listEndpoints } from './security/endpoint-security';
+import { acknowledgePolicy, createEnrollment, ingestEvent, listAlerts, listEndpoints, purgeAlerts, revokeEndpoint, rotateEnrollment, updateAlert } from './security/endpoint-security';
+import { githubSecurityEvent, verifyGithubSignature } from './security/github-security';
+import { incrementMetric, metrics } from './observability';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -79,17 +81,23 @@ function userAgent(request: IncomingMessage): string {
 }
 
 async function readBody(request: IncomingMessage): Promise<Record<string, unknown> | null> {
-  let body = '';
-  for await (const chunk of request) {
-    body += chunk;
-    if (body.length > 16_384) return null;
-  }
+  const body = await readRawBody(request);
+  if (body === null) return null;
   try {
     const parsed: unknown = JSON.parse(body || '{}');
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+}
+
+async function readRawBody(request: IncomingMessage): Promise<string | null> {
+  let body = '';
+  for await (const chunk of request) {
+    body += chunk;
+    if (body.length > 16_384) return null;
+  }
+  return body;
 }
 
 function text(value: unknown, max = 120): string | null {
@@ -180,13 +188,14 @@ export function authPlugin(geminiApiKey?: string): Plugin {
     const method = request.method ?? 'GET';
 
     const isEndpointEvent = method === 'POST' && route === '/api/security/endpoints/events';
-    if (method === 'POST' && !isEndpointEvent && !isSameOriginWrite(request)) return send(response, 403, { message: 'Request blocked: cross-site or missing request header.' });
+    const isGithubWebhook = method === 'POST' && route === '/api/integrations/github/security';
+    if (method === 'POST' && !isEndpointEvent && !isGithubWebhook && !isSameOriginWrite(request)) return send(response, 403, { message: 'Request blocked: cross-site or missing request header.' });
 
     const sessionUser = (): StoredUser | null => getSession(getCookie(request), ip, userAgent(request));
     const unauthorised = () => send(response, 401, { message: 'Session expired. Please login again.' });
 
     try {
-      if (method === 'GET' && route === '/local-api/health') return send(response, 200, getHealth(Boolean(geminiApiKey)));
+      if (method === 'GET' && route === '/local-api/health') return send(response, 200, { ...getHealth(Boolean(geminiApiKey)), metrics: metrics() });
 
       if (isEndpointEvent) {
         if (limited(response, 'endpoint', clientIp(request))) return;
@@ -204,7 +213,17 @@ export function authPlugin(geminiApiKey?: string): Plugin {
             remediationRequested: body.remediationRequested === true,
           },
         );
+        incrementMetric('endpoint.events');
         return 'value' in result ? send(response, 202, result.value) : send(response, result.status, { message: result.message });
+      }
+
+      if (isGithubWebhook) {
+        const raw = await readRawBody(request);
+        if (raw === null || !verifyGithubSignature(raw, text(request.headers['x-hub-signature-256'], 100), process.env.BM_GITHUB_WEBHOOK_SECRET)) return send(response, 401, { message: 'Invalid GitHub webhook signature.' });
+        const parsed = JSON.parse(raw) as unknown;
+        const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+        incrementMetric('github.webhooks');
+        return send(response, 202, { event: githubSecurityEvent(String(request.headers['x-github-event'] ?? 'unknown'), body ?? {}) });
       }
 
       if (method === 'GET' && route === '/api/security/status') {
@@ -212,11 +231,34 @@ export function authPlugin(geminiApiKey?: string): Plugin {
         return send(response, 200, { storage: storageInfo(), auditChain: verifyAuditChain(), rag: { chunks: corpusStats().chunks, gemini: Boolean(geminiApiKey) } });
       }
 
-      if (route === '/api/security/endpoints' || route === '/api/security/alerts' || route === '/api/security/policy/acknowledge') {
+      const endpointAction = route.match(/^\/api\/security\/endpoints\/(END-[a-f0-9]+)\/(rotate|revoke)$/i);
+      const alertAction = route.match(/^\/api\/security\/alerts\/(ALT-[a-f0-9]+)$/i);
+      if (route === '/api/security/endpoints' || route === '/api/security/alerts' || route === '/api/security/policy/acknowledge' || endpointAction || alertAction) {
         const owner = sessionUser();
         if (!owner) return unauthorised();
         if (method === 'GET' && route === '/api/security/endpoints') return send(response, 200, { endpoints: listEndpoints(owner.id) });
         if (method === 'GET' && route === '/api/security/alerts') return send(response, 200, { alerts: listAlerts(owner.id) });
+        if (method === 'POST' && endpointAction?.[2] === 'rotate') {
+          const result = rotateEnrollment(owner.id, endpointAction[1]);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && endpointAction?.[2] === 'revoke') {
+          const result = revokeEndpoint(owner.id, endpointAction[1]);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'POST' && alertAction) {
+          const body = await readBody(request);
+          if (body?.status !== 'OPEN' && body?.status !== 'ACKNOWLEDGED') return send(response, 400, { message: 'Choose OPEN or ACKNOWLEDGED.' });
+          const result = updateAlert(owner.id, alertAction[1], body.status);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
+        if (method === 'DELETE' && route === '/api/security/alerts') {
+          const before = text(new URL(request.url ?? '', 'http://local').searchParams.get('before'), 40);
+          const beforeDate = before ? new Date(before) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+          if (Number.isNaN(beforeDate.getTime())) return send(response, 400, { message: 'Invalid retention date.' });
+          const result = purgeAlerts(owner.id, beforeDate);
+          return 'value' in result ? send(response, 200, result.value) : send(response, result.status, { message: result.message });
+        }
         if (method === 'POST' && route === '/api/security/policy/acknowledge') {
           const result = acknowledgePolicy(owner.id);
           return 'value' in result ? send(response, 201, result.value) : send(response, result.status, { message: result.message });

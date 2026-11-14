@@ -194,6 +194,14 @@ Employees never receive fabricated or uncertain policy guidance. When the Copilo
 
 **Before production**, add HTTPS, a real database with backups, a secrets manager for `BM_DATA_KEY`, persistent session storage, an email path for password resets and centralised logging. The current storage is designed for a single local process.
 
+### Production hardening
+
+- Enforce mutual TLS at the reverse proxy for endpoint agents; the application additionally binds events to the certificate fingerprint.
+- Configure `BM_GITHUB_WEBHOOK_SECRET` and install a GitHub App with least-privilege security-event permissions. Webhook payloads are signature-checked before processing.
+- Use the endpoint lifecycle APIs to rotate enrollment tokens, revoke devices, acknowledge alerts, and purge alerts older than the retention window.
+- Replace JSON storage with a transactional database before running multiple server instances. Keep encrypted backups and rotate `BM_DATA_KEY` through a secrets manager.
+- Enable the Security workflow for dependency auditing and CodeQL. Treat `npm audit` failures as release blockers.
+
 ---
 
 ## 📁 Repository Structure
