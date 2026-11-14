@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { appendAudit, AuditEvent } from './security/audit-log';
 import { hashPassword, verifyPassword } from './security/password';
-import { hmac, readSecureJson, writeSecureJson } from './security/secure-store';
+import { hmac, readSecureJson, withDataLock, writeSecureJson } from './security/secure-store';
 import { generateRecoveryCodes, generateSecret, hashRecoveryCode, otpauthUri, verifyTotp } from './security/totp';
 
 export type AuthRole = 'Incident Commander' | 'Threat Hunter' | 'SOC Security Lead' | 'Cloud Security Architect';
@@ -136,58 +136,60 @@ export function createUser(input: { name: string; username: string; email: strin
 }
 
 export function authenticate(identifier: string, password: string, ip?: string, userAgent?: string, secondFactorCode?: string): { ok: true; user: StoredUser; token: string } | { ok: false; message: string; code?: '2fa_required' } {
-  const login = normalize(identifier);
-  const storedUsers = users();
-  const user = storedUsers.find(item => item.username === login || item.email === login);
-  const now = new Date().toISOString();
-  if (!user) {
-    // Spend comparable time to a real check so response timing does not reveal which usernames exist.
-    verifyPassword(password, { passwordHash: dummyHash() });
-    audit({ event: 'login', username: login.slice(0, 120), status: 'failed', reason: 'unregistered_username' }, ip);
-    return { ok: false, message: 'Username is not registered. Please register before logging in.' };
-  }
-  if (user.lockUntil && Date.parse(user.lockUntil) > Date.now()) {
-    audit({ event: 'login', username: user.username, status: 'failed', reason: 'locked' }, ip);
-    return { ok: false, message: 'Account temporarily locked due to multiple failed login attempts. Please try again later.' };
-  }
-  if (user.lockUntil) user.lockUntil = null;
-
-  const result = verifyPassword(password, user);
-  if (!result.ok) {
-    user.failedAttempts += 1;
-    let reason = 'invalid_credentials';
-    if (user.failedAttempts >= MAX_FAILED_ATTEMPTS) {
-      user.lockUntil = new Date(Date.now() + LOCKOUT_MS).toISOString();
-      reason = 'lockout';
-      audit({ event: 'lockout', username: user.username, status: 'failed', reason }, ip);
+  return withDataLock('auth-users', () => {
+    const login = normalize(identifier);
+    const storedUsers = users();
+    const user = storedUsers.find(item => item.username === login || item.email === login);
+    const now = new Date().toISOString();
+    if (!user) {
+      // Spend comparable time to a real check so response timing does not reveal which usernames exist.
+      verifyPassword(password, { passwordHash: dummyHash() });
+      audit({ event: 'login', username: login.slice(0, 120), status: 'failed', reason: 'unregistered_username' }, ip);
+      return { ok: false, message: 'Username is not registered. Please register before logging in.' };
     }
+    if (user.lockUntil && Date.parse(user.lockUntil) > Date.now()) {
+      audit({ event: 'login', username: user.username, status: 'failed', reason: 'locked' }, ip);
+      return { ok: false, message: 'Account temporarily locked due to multiple failed login attempts. Please try again later.' };
+    }
+    if (user.lockUntil) user.lockUntil = null;
+
+    const result = verifyPassword(password, user);
+    if (!result.ok) {
+      user.failedAttempts += 1;
+      let reason = 'invalid_credentials';
+      if (user.failedAttempts >= MAX_FAILED_ATTEMPTS) {
+        user.lockUntil = new Date(Date.now() + LOCKOUT_MS).toISOString();
+        reason = 'lockout';
+        audit({ event: 'lockout', username: user.username, status: 'failed', reason }, ip);
+      }
+      user.updatedAt = now;
+      saveUsers(storedUsers);
+      audit({ event: 'login', username: user.username, status: 'failed', reason }, ip);
+      return { ok: false, message: user.lockUntil ? 'Account temporarily locked due to multiple failed login attempts. Please try again later.' : 'Invalid username or password.' };
+    }
+
+    if (result.needsRehash) {
+      user.passwordHash = hashPassword(password);
+      delete user.passwordSalt;
+      delete user.passwordIterations;
+      audit({ event: 'password_rehash', username: user.username, status: 'success', reason: 'upgraded_to_scrypt' }, ip);
+    }
+    if (user.twoFactorEnabled) {
+      if (!secondFactorCode || !verifySecondFactor(user, secondFactorCode)) {
+        audit({ event: '2fa_verification', username: user.username, status: 'failed', reason: secondFactorCode ? 'invalid_code' : 'missing_code' }, ip);
+        return { ok: false, code: '2fa_required', message: 'A six-digit authenticator code is required.' };
+      }
+    }
+    user.failedAttempts = 0;
+    user.lockUntil = null;
     user.updatedAt = now;
     saveUsers(storedUsers);
-    audit({ event: 'login', username: user.username, status: 'failed', reason }, ip);
-    return { ok: false, message: user.lockUntil ? 'Account temporarily locked due to multiple failed login attempts. Please try again later.' : 'Invalid username or password.' };
-  }
-
-  if (result.needsRehash) {
-    user.passwordHash = hashPassword(password);
-    delete user.passwordSalt;
-    delete user.passwordIterations;
-    audit({ event: 'password_rehash', username: user.username, status: 'success', reason: 'upgraded_to_scrypt' }, ip);
-  }
-  if (user.twoFactorEnabled) {
-    if (!secondFactorCode || !verifySecondFactor(user, secondFactorCode)) {
-      audit({ event: '2fa_verification', username: user.username, status: 'failed', reason: secondFactorCode ? 'invalid_code' : 'missing_code' }, ip);
-      return { ok: false, code: '2fa_required', message: 'A six-digit authenticator code is required.' };
-    }
-  }
-  user.failedAttempts = 0;
-  user.lockUntil = null;
-  user.updatedAt = now;
-  saveUsers(storedUsers);
-  const token = crypto.randomBytes(32).toString('base64url');
-  const time = Date.now();
-  sessions.set(hashToken(token), { userId: user.id, createdAt: time, lastActivity: time, agent: agentHash(userAgent) });
-  audit({ event: 'login', username: user.username, status: 'success' }, ip);
-  return { ok: true, user, token };
+    const token = crypto.randomBytes(32).toString('base64url');
+    const time = Date.now();
+    sessions.set(hashToken(token), { userId: user.id, createdAt: time, lastActivity: time, agent: agentHash(userAgent) });
+    audit({ event: 'login', username: user.username, status: 'success' }, ip);
+    return { ok: true, user, token };
+  });
 }
 
 function verifySecondFactor(user: StoredUser, code: string): boolean {
@@ -196,25 +198,12 @@ function verifySecondFactor(user: StoredUser, code: string): boolean {
     if (user.twoFactorLastCodeHash === codeHash && (user.twoFactorLastCodeAt ?? 0) > Date.now() - 90_000) return false;
     user.twoFactorLastCodeHash = codeHash;
     user.twoFactorLastCodeAt = Date.now();
-    const storedUsers = users();
-    const stored = storedUsers.find(item => item.id === user.id);
-    if (stored) {
-      stored.twoFactorLastCodeHash = user.twoFactorLastCodeHash;
-      stored.twoFactorLastCodeAt = user.twoFactorLastCodeAt;
-      saveUsers(storedUsers);
-    }
     return true;
   }
   const hash = hashRecoveryCode(code);
   const index = user.twoFactorRecoveryHashes?.indexOf(hash) ?? -1;
   if (index < 0) return false;
   user.twoFactorRecoveryHashes?.splice(index, 1);
-  const storedUsers = users();
-  const stored = storedUsers.find(item => item.id === user.id);
-  if (stored) {
-    stored.twoFactorRecoveryHashes = user.twoFactorRecoveryHashes;
-    saveUsers(storedUsers);
-  }
   return true;
 }
 

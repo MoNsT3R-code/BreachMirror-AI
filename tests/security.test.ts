@@ -115,3 +115,26 @@ test('recovery codes are random, fixed length, and stored as one-way hashes', ()
   assert.ok(codes.every(code => totp.hashRecoveryCode(code) !== code));
   assert.notEqual(new Set(codes).size, 1);
 });
+
+test('data lock releases after success and exceptions', () => {
+  let ran = false;
+  assert.equal(store.withDataLock('test-lock', () => {
+    ran = true;
+    return 42;
+  }), 42);
+  assert.equal(ran, true);
+  assert.equal(store.withDataLock('test-lock', () => 'reused'), 'reused');
+  assert.throws(() => store.withDataLock('test-lock', () => {
+    throw new Error('expected');
+  }), /expected/);
+  assert.equal(store.withDataLock('test-lock', () => 'after-error'), 'after-error');
+});
+
+test('data lock recovers stale lock files', () => {
+  const lockPath = path.join(dir, '.stale-lock.lock');
+  fs.writeFileSync(lockPath, 'dead-worker', { mode: 0o600 });
+  const old = new Date(Date.now() - 31_000);
+  fs.utimesSync(lockPath, old, old);
+  assert.equal(store.withDataLock('stale-lock', () => 'recovered'), 'recovered');
+  assert.equal(fs.existsSync(lockPath), false);
+});
